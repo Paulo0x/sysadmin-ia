@@ -66,10 +66,12 @@ const components = {
   ),
 }
 
-export default function MDXContent({ source }: MDXContentProps) {
+function MDXContent({ source }: MDXContentProps) {
   return (
     <div className="prose-custom max-w-none">
       <MDXRemote {...source} components={components} />
     </div>
   )
 }
+
+export default MDXContent
