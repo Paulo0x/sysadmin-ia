@@ -1,0 +1,706 @@
+# Vérification sécurité Windows Server avec IA
+
+## Objectif
+
+Effectuer un audit de sécurité complet sur Windows Server en exploitant l'IA pour analyser les configurations, identifier les vulnérabilités et proposer des actions correctives selon les best practices Microsoft et les standards de sécurité.
+
+## Contexte entreprise
+
+Une PME de 120 employés dispose de 5 serveurs Windows Server 2019/2022 :
+- 2 contrôleurs de domaine (Active Directory)
+- 1 serveur de fichiers
+- 1 serveur applicatif (IIS + SQL Server)
+- 1 serveur RDS (Remote Desktop Services)
+
+Aucun audit de sécurité n'a été réalisé depuis 2 ans. L'objectif est d'identifier les failles avant une potentielle cyberattaque.
+
+## Problème
+
+Un audit de sécurité Windows Server implique :
+- Vérifier des centaines de paramètres (GPO, registre, services)
+- Analyser les permissions NTFS et partages
+- Contrôler les configurations firewall
+- Auditer les comptes et groupes
+- Vérifier les mises à jour de sécurité
+- Consulter les benchmarks de sécurité (CIS, ANSSI)
+
+**Temps estimé** : 2-3 jours par serveur pour un audit complet manuel
+
+**Difficultés** :
+- Nombre élevé de points à vérifier
+- Documentation des benchmarks volumineuse
+- Risque d'oubli d'éléments critiques
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+1. Consulter le CIS Benchmark pour Windows Server
+2. Vérifier chaque paramètre un par un
+3. Documenter les écarts
+4. Proposer des corrections
+5. Tester les modifications
+
+**Outils classiques** :
+- Security Compliance Manager (Microsoft)
+- GPResult pour analyser les GPO
+- Vérifications manuelles dans le registre
+
+### Limites
+
+- Processus extrêmement long
+- Risque d'erreurs humaines
+- Documentation fastidieuse
+
+## Apport de l'IA
+
+L'IA permet de :
+- Générer des scripts d'audit automatisés
+- Analyser rapidement les résultats d'audit
+- Comparer avec les benchmarks de sécurité
+- Prioriser les vulnérabilités par criticité
+- Proposer des scripts de correction
+- Documenter automatiquement les écarts
+
+**Temps avec IA** : 4-6 heures par serveur (audit + analyse + corrections)
+
+**Gain de productivité** : 75-80%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Génération du script d'audit avec l'IA
+
+**Prompt** :
+
+```
+Génère un script PowerShell complet pour auditer la sécurité
+d'un serveur Windows Server 2019/2022.
+
+Le script doit vérifier :
+1. Politique de mots de passe (complexité, durée, historique)
+2. Comptes administrateurs (nombre, noms)
+3. Services en écoute (ports ouverts)
+4. Pare-feu Windows (activé, règles)
+5. Mises à jour installées (dernières KB)
+6. Partages réseau (permissions)
+7. Audit des événements (activé)
+8. BitLocker (activé sur les disques)
+9. Antivirus (actif, à jour)
+10. Comptes obsolètes (inactifs > 90 jours)
+
+Pour chaque point :
+- Statut actuel
+- Recommandation (conforme / non conforme CIS Benchmark)
+- Action corrective si nécessaire
+
+Générer un rapport HTML lisible.
+```
+
+### Script d'audit généré
+
+```powershell
+<#
+.SYNOPSIS
+    Audit de sécurité Windows Server
+.DESCRIPTION
+    Audite les configurations de sécurité selon CIS Benchmark
+    Génère un rapport HTML avec recommandations
+.EXAMPLE
+    .\Audit-WindowsSecurity.ps1
+#>
+
+[CmdletBinding()]
+param(
+    [string]$ReportPath = "C:\Audit\Security_Report_$(Get-Date -Format 'yyyyMMdd').html"
+)
+
+# Vérification admin
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Error "Ce script nécessite des privilèges administrateur"
+    exit 1
+}
+
+$results = @()
+
+# ==================================
+# 1. POLITIQUE DE MOTS DE PASSE
+# ==================================
+
+Write-Host "[1/10] Audit politique mots de passe..." -ForegroundColor Yellow
+
+$passwordPolicy = Get-ADDefaultDomainPasswordPolicy
+
+$pwdCheck = @{
+    "MinPasswordLength" = @{
+        "Actuel" = $passwordPolicy.MinPasswordLength
+        "Recommandé" = 14
+        "Conforme" = ($passwordPolicy.MinPasswordLength -ge 14)
+    }
+    "PasswordComplexity" = @{
+        "Actuel" = $passwordPolicy.ComplexityEnabled
+        "Recommandé" = $true
+        "Conforme" = ($passwordPolicy.ComplexityEnabled -eq $true)
+    }
+    "MaxPasswordAge" = @{
+        "Actuel" = $passwordPolicy.MaxPasswordAge.Days
+        "Recommandé" = "90 jours"
+        "Conforme" = ($passwordPolicy.MaxPasswordAge.Days -le 90 -and $passwordPolicy.MaxPasswordAge.Days -gt 0)
+    }
+    "PasswordHistoryCount" = @{
+        "Actuel" = $passwordPolicy.PasswordHistoryCount
+        "Recommandé" = 24
+        "Conforme" = ($passwordPolicy.PasswordHistoryCount -ge 24)
+    }
+}
+
+$results += [PSCustomObject]@{
+    Category = "Politique mots de passe"
+    Item = "Longueur minimale"
+    Current = $pwdCheck.MinPasswordLength.Actuel
+    Recommended = $pwdCheck.MinPasswordLength.Recommandé
+    Compliant = $pwdCheck.MinPasswordLength.Conforme
+    Priority = if (-not $pwdCheck.MinPasswordLength.Conforme) { "Élevée" } else { "OK" }
+}
+
+# ==================================
+# 2. COMPTES ADMINISTRATEURS
+# ==================================
+
+Write-Host "[2/10] Audit comptes administrateurs..." -ForegroundColor Yellow
+
+$domainAdmins = Get-ADGroupMember -Identity "Domain Admins" -Recursive
+$adminCount = $domainAdmins.Count
+
+$results += [PSCustomObject]@{
+    Category = "Comptes administrateurs"
+    Item = "Nombre de Domain Admins"
+    Current = $adminCount
+    Recommended = "2-3 maximum"
+    Compliant = ($adminCount -le 3)
+    Priority = if ($adminCount -gt 3) { "Critique" } else { "OK" }
+}
+
+# ==================================
+# 3. SERVICES ET PORTS
+# ==================================
+
+Write-Host "[3/10] Audit services et ports..." -ForegroundColor Yellow
+
+$openPorts = Get-NetTCPConnection -State Listen |
+    Select-Object LocalAddress, LocalPort, OwningProcess |
+    Group-Object LocalPort |
+    Select-Object Name, Count
+
+$riskyPorts = @(135, 139, 445, 3389) # Ports à surveiller
+
+foreach ($port in $riskyPorts) {
+    $isOpen = $openPorts | Where-Object { $_.Name -eq $port }
+
+    $results += [PSCustomObject]@{
+        Category = "Ports réseau"
+        Item = "Port $port ($(switch ($port) { 135 {'RPC'}; 139 {'NetBIOS'}; 445 {'SMB'}; 3389 {'RDP'} }))"
+        Current = if ($isOpen) { "Ouvert" } else { "Fermé" }
+        Recommended = if ($port -eq 3389) { "Ouvert mais restreint" } else { "Fermé si non utilisé" }
+        Compliant = if ($port -ne 3389) { -not $isOpen } else { $true }
+        Priority = if ($isOpen -and $port -ne 3389) { "Moyenne" } else { "Info" }
+    }
+}
+
+# ==================================
+# 4. PARE-FEU WINDOWS
+# ==================================
+
+Write-Host "[4/10] Audit pare-feu Windows..." -ForegroundColor Yellow
+
+$firewallProfiles = Get-NetFirewallProfile
+
+foreach ($profile in $firewallProfiles) {
+    $results += [PSCustomObject]@{
+        Category = "Pare-feu"
+        Item = "Profil $($profile.Name)"
+        Current = $profile.Enabled
+        Recommended = $true
+        Compliant = $profile.Enabled
+        Priority = if (-not $profile.Enabled) { "Critique" } else { "OK" }
+    }
+}
+
+# ==================================
+# 5. MISES À JOUR
+# ==================================
+
+Write-Host "[5/10] Audit mises à jour..." -ForegroundColor Yellow
+
+$hotfixes = Get-HotFix | Sort-Object InstalledOn -Descending
+$lastUpdate = $hotfixes[0].InstalledOn
+$daysSinceUpdate = (New-TimeSpan -Start $lastUpdate -End (Get-Date)).Days
+
+$results += [PSCustomObject]@{
+    Category = "Mises à jour"
+    Item = "Dernière mise à jour"
+    Current = "$daysSinceUpdate jours"
+    Recommended = "< 30 jours"
+    Compliant = ($daysSinceUpdate -lt 30)
+    Priority = if ($daysSinceUpdate -gt 30) { "Élevée" } else { "OK" }
+}
+
+# ==================================
+# 6. PARTAGES RÉSEAU
+# ==================================
+
+Write-Host "[6/10] Audit partages réseau..." -ForegroundColor Yellow
+
+$shares = Get-SmbShare | Where-Object { $_.Name -ne "IPC$" -and $_.Name -notlike "*$" }
+
+foreach ($share in $shares) {
+    $access = Get-SmbShareAccess -Name $share.Name
+
+    # Vérifier si "Everyone" a accès
+    $everyoneAccess = $access | Where-Object { $_.AccountName -like "*Everyone*" }
+
+    $results += [PSCustomObject]@{
+        Category = "Partages réseau"
+        Item = $share.Name
+        Current = if ($everyoneAccess) { "Everyone a accès" } else { "Permissions restreintes" }
+        Recommended = "Permissions restreintes"
+        Compliant = -not $everyoneAccess
+        Priority = if ($everyoneAccess) { "Critique" } else { "OK" }
+    }
+}
+
+# ==================================
+# 7. AUDIT DES ÉVÉNEMENTS
+# ==================================
+
+Write-Host "[7/10] Audit journalisation..." -ForegroundColor Yellow
+
+$auditPolicy = auditpol /get /category:* | Out-String
+
+$criticalAudits = @("Logon", "Account Logon", "Account Management", "Policy Change")
+
+foreach ($audit in $criticalAudits) {
+    $isEnabled = $auditPolicy -match "$audit.*Success and Failure"
+
+    $results += [PSCustomObject]@{
+        Category = "Audit événements"
+        Item = $audit
+        Current = if ($isEnabled) { "Activé" } else { "Désactivé" }
+        Recommended = "Success and Failure"
+        Compliant = $isEnabled
+        Priority = if (-not $isEnabled) { "Élevée" } else { "OK" }
+    }
+}
+
+# ==================================
+# 8. BITLOCKER
+# ==================================
+
+Write-Host "[8/10] Audit BitLocker..." -ForegroundColor Yellow
+
+$volumes = Get-BitLockerVolume
+
+foreach ($volume in $volumes) {
+    $results += [PSCustomObject]@{
+        Category = "BitLocker"
+        Item = "Volume $($volume.MountPoint)"
+        Current = $volume.ProtectionStatus
+        Recommended = "On"
+        Compliant = ($volume.ProtectionStatus -eq "On")
+        Priority = if ($volume.ProtectionStatus -ne "On") { "Moyenne" } else { "OK" }
+    }
+}
+
+# ==================================
+# 9. ANTIVIRUS
+# ==================================
+
+Write-Host "[9/10] Audit antivirus..." -ForegroundColor Yellow
+
+$defender = Get-MpComputerStatus
+
+$results += [PSCustomObject]@{
+    Category = "Antivirus"
+    Item = "Windows Defender"
+    Current = if ($defender.RealTimeProtectionEnabled) { "Actif" } else { "Inactif" }
+    Recommended = "Actif"
+    Compliant = $defender.RealTimeProtectionEnabled
+    Priority = if (-not $defender.RealTimeProtectionEnabled) { "Critique" } else { "OK" }
+}
+
+$daysSinceDefUpdate = (New-TimeSpan -Start $defender.AntivirusSignatureLastUpdated -End (Get-Date)).Days
+
+$results += [PSCustomObject]@{
+    Category = "Antivirus"
+    Item = "Dernière mise à jour signatures"
+    Current = "$daysSinceDefUpdate jours"
+    Recommended = "< 7 jours"
+    Compliant = ($daysSinceDefUpdate -lt 7)
+    Priority = if ($daysSinceDefUpdate -gt 7) { "Élevée" } else { "OK" }
+}
+
+# ==================================
+# 10. COMPTES OBSOLÈTES
+# ==================================
+
+Write-Host "[10/10] Audit comptes obsolètes..." -ForegroundColor Yellow
+
+$inactiveDate = (Get-Date).AddDays(-90)
+$inactiveUsers = Get-ADUser -Filter {Enabled -eq $true -and LastLogonDate -lt $inactiveDate} -Properties LastLogonDate
+
+$results += [PSCustomObject]@{
+    Category = "Comptes utilisateurs"
+    Item = "Comptes inactifs (> 90 jours)"
+    Current = $inactiveUsers.Count
+    Recommended = "0"
+    Compliant = ($inactiveUsers.Count -eq 0)
+    Priority = if ($inactiveUsers.Count -gt 0) { "Moyenne" } else { "OK" }
+}
+
+# ==================================
+# GÉNÉRATION DU RAPPORT HTML
+# ==================================
+
+Write-Host "`n[OK] Génération du rapport HTML..." -ForegroundColor Green
+
+$html = @"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Audit de sécurité Windows Server - $(Get-Date -Format 'yyyy-MM-dd')</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #0066cc; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background-color: #0066cc; color: white; padding: 10px; text-align: left; }
+        td { border: 1px solid #ddd; padding: 8px; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .critique { background-color: #ff4444; color: white; font-weight: bold; }
+        .elevee { background-color: #ff9944; color: white; }
+        .moyenne { background-color: #ffcc44; }
+        .ok { background-color: #44cc44; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Audit de sécurité Windows Server</h1>
+    <p><strong>Date :</strong> $(Get-Date -Format 'yyyy-MM-dd HH:mm')</p>
+    <p><strong>Serveur :</strong> $env:COMPUTERNAME</p>
+
+    <h2>Résumé</h2>
+    <p>Total points vérifiés : $($results.Count)</p>
+    <p>Conformes : $(($results | Where-Object {$_.Compliant}).Count)</p>
+    <p>Non conformes : $(($results | Where-Object {-not $_.Compliant}).Count)</p>
+
+    <h2>Détail des vérifications</h2>
+    <table>
+        <tr>
+            <th>Catégorie</th>
+            <th>Élément</th>
+            <th>État actuel</th>
+            <th>Recommandé</th>
+            <th>Conforme</th>
+            <th>Priorité</th>
+        </tr>
+"@
+
+foreach ($result in $results) {
+    $priorityClass = switch ($result.Priority) {
+        "Critique" { "critique" }
+        "Élevée" { "elevee" }
+        "Moyenne" { "moyenne" }
+        default { "ok" }
+    }
+
+    $html += @"
+        <tr>
+            <td>$($result.Category)</td>
+            <td>$($result.Item)</td>
+            <td>$($result.Current)</td>
+            <td>$($result.Recommended)</td>
+            <td>$(if ($result.Compliant) { "✓" } else { "✗" })</td>
+            <td class="$priorityClass">$($result.Priority)</td>
+        </tr>
+"@
+}
+
+$html += @"
+    </table>
+</body>
+</html>
+"@
+
+$html | Out-File $ReportPath -Encoding UTF8
+
+Write-Host "✓ Rapport généré : $ReportPath" -ForegroundColor Green
+
+# Ouvrir le rapport
+Start-Process $ReportPath
+```
+
+### Étape 2 : Exécuter l'audit
+
+```powershell
+.\Audit-WindowsSecurity.ps1
+```
+
+Le script génère un rapport HTML lisible avec toutes les vérifications.
+
+### Étape 3 : Analyser le rapport avec l'IA
+
+**Exemple de résultats d'audit** :
+
+```
+Total points vérifiés : 25
+Conformes : 15
+Non conformes : 10
+
+Non conformités critiques :
+- 5 comptes Domain Admins (recommandé : 2-3)
+- Partage "Documents" accessible par Everyone
+- Antivirus inactif
+
+Non conformités élevées :
+- Dernière mise à jour : 45 jours (recommandé : < 30)
+- Audit "Account Management" désactivé
+
+Non conformités moyennes :
+- 12 comptes inactifs > 90 jours
+- BitLocker non activé sur volume D:
+```
+
+**Prompt pour priorisation** :
+
+```
+Analyse ce rapport d'audit de sécurité Windows Server et propose
+un plan d'action priorisé.
+
+Résultats :
+[copier-coller les non-conformités]
+
+Questions :
+1. Quelle est la criticité réelle de chaque problème ?
+2. Dans quel ordre corriger ?
+3. Quelles commandes PowerShell utiliser pour corriger ?
+4. Quels risques si on ne corrige pas ?
+```
+
+### Étape 4 : Plan de correction généré par l'IA
+
+**Réponse de l'IA (synthèse)** :
+
+#### Actions immédiates (Jour 1)
+
+**1. Activer l'antivirus (CRITIQUE)**
+```powershell
+Set-MpPreference -DisableRealtimeMonitoring $false
+Update-MpSignature
+```
+
+**2. Supprimer l'accès "Everyone" sur le partage Documents (CRITIQUE)**
+```powershell
+Revoke-SmbShareAccess -Name "Documents" -AccountName "Everyone" -Force
+Grant-SmbShareAccess -Name "Documents" -AccountName "Domain Users" -AccessRight Change
+```
+
+**3. Réduire les Domain Admins à 3 comptes (CRITIQUE)**
+```powershell
+# Identifier les comptes à retirer
+Get-ADGroupMember -Identity "Domain Admins"
+
+# Retirer les comptes non strictement nécessaires
+Remove-ADGroupMember -Identity "Domain Admins" -Members "user4","user5" -Confirm:$false
+```
+
+#### Actions court terme (Semaine 1)
+
+**4. Installer les mises à jour**
+```powershell
+Install-Module PSWindowsUpdate
+Get-WindowsUpdate -Install -AcceptAll -AutoReboot
+```
+
+**5. Activer l'audit "Account Management"**
+```powershell
+auditpol /set /subcategory:"User Account Management" /success:enable /failure:enable
+auditpol /set /subcategory:"Security Group Management" /success:enable /failure:enable
+```
+
+#### Actions moyen terme (Mois 1)
+
+**6. Désactiver les comptes inactifs**
+```powershell
+$inactiveDate = (Get-Date).AddDays(-90)
+Get-ADUser -Filter {Enabled -eq $true -and LastLogonDate -lt $inactiveDate} |
+    Disable-ADAccount
+```
+
+**7. Activer BitLocker sur volume D:**
+```powershell
+Enable-BitLocker -MountPoint "D:" -EncryptionMethod XtsAes256 -UsedSpaceOnly -RecoveryPasswordProtector
+```
+
+### Étape 5 : Appliquer les corrections
+
+Suivre le plan d'action en commençant par les actions critiques.
+
+## Scripts / Commandes / Configurations
+
+### Checklist de sécurité Windows Server
+
+```markdown
+## Checklist sécurité Windows Server (CIS Benchmark)
+
+### Comptes et authentification
+- [ ] Politique mots de passe : 14 caractères min, complexité activée
+- [ ] Expiration mots de passe : 90 jours max
+- [ ] Historique mots de passe : 24 derniers
+- [ ] Lockout account : 5 tentatives max, 30 min de blocage
+- [ ] Domain Admins : 2-3 comptes maximum
+- [ ] Compte Administrator renommé
+- [ ] Comptes invité désactivés
+- [ ] Comptes inactifs > 90 jours : désactivés
+
+### Réseau et services
+- [ ] Pare-feu Windows activé (tous profils)
+- [ ] SMBv1 désactivé
+- [ ] Ports non essentiels fermés
+- [ ] RDP restreint par IP si nécessaire
+- [ ] LLMNR et NetBIOS désactivés
+- [ ] WinRM sécurisé (HTTPS uniquement)
+
+### Audit et logging
+- [ ] Audit Logon : Success + Failure
+- [ ] Audit Account Logon : Success + Failure
+- [ ] Audit Account Management : Success + Failure
+- [ ] Audit Policy Change : Success + Failure
+- [ ] Logs Event Viewer : 90 jours de rétention min
+
+### Chiffrement
+- [ ] BitLocker activé sur tous les volumes
+- [ ] Clés de récupération sauvegardées dans AD
+- [ ] SMB Signing activé
+- [ ] LDAP Signing activé
+
+### Antivirus et protection
+- [ ] Windows Defender actif
+- [ ] Signatures à jour (< 7 jours)
+- [ ] Real-time protection activée
+- [ ] Scan automatique quotidien configuré
+
+### Mises à jour
+- [ ] Windows Update activé
+- [ ] Dernière mise à jour < 30 jours
+- [ ] Mises à jour critiques installées
+- [ ] WSUS configuré si environnement d'entreprise
+
+### Partages et permissions
+- [ ] Partages par défaut (C$, ADMIN$) : accès restreint
+- [ ] Aucun partage avec accès "Everyone"
+- [ ] Permissions NTFS : principe du moindre privilège
+- [ ] Audit accès fichiers critiques activé
+```
+
+### Script de correction automatique (avec prudence)
+
+```powershell
+# Fix-CommonSecurityIssues.ps1
+# ATTENTION : Tester en environnement de dev avant production
+
+# Activer le pare-feu
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+
+# Désactiver SMBv1
+Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+
+# Activer l'audit
+auditpol /set /category:"Logon/Logoff" /success:enable /failure:enable
+auditpol /set /category:"Account Logon" /success:enable /failure:enable
+auditpol /set /category:"Account Management" /success:enable /failure:enable
+
+# Activer Windows Defender
+Set-MpPreference -DisableRealtimeMonitoring $false
+Update-MpSignature
+
+# Désactiver comptes inactifs
+$inactiveDate = (Get-Date).AddDays(-90)
+Get-ADUser -Filter {Enabled -eq $true -and LastLogonDate -lt $inactiveDate} |
+    Disable-ADAccount -WhatIf  # Retirer -WhatIf pour exécuter réellement
+
+Write-Host "Corrections de sécurité appliquées" -ForegroundColor Green
+```
+
+## Risques et limites
+
+### Risques de correction
+
+**Désactivation de comptes** : Des comptes apparemment inactifs peuvent être des comptes de service. Toujours vérifier avant de désactiver.
+
+**Modifications GPO** : Des changements de GPO peuvent impacter les utilisateurs. Tester en environnement de dev d'abord.
+
+### Limites de l'IA
+
+**Contexte spécifique** : L'IA donne des recommandations génériques. Votre environnement peut avoir des besoins spécifiques.
+
+**Faux positifs** : Certains avertissements peuvent être acceptables selon votre contexte (ex: port 3389 ouvert si RDP est nécessaire).
+
+### Risques opérationnels
+
+**Impact utilisateurs** : Certaines corrections (politique mots de passe renforcée) peuvent générer des tickets helpdesk.
+
+**Compatibilité applications** : Certaines applications legacy peuvent ne pas supporter SMB v2/v3.
+
+## Bonnes pratiques
+
+### Avant l'audit
+
+1. Planifier l'audit en dehors des heures de production
+2. Prévenir les utilisateurs si des tests peuvent impacter les services
+3. Sauvegarder les configurations actuelles
+
+### Pendant l'audit
+
+1. Exécuter le script avec des privilèges administrateur
+2. Documenter les résultats immédiatement
+3. Prioriser les corrections par criticité
+
+### Après l'audit
+
+1. Planifier les corrections par phases (critique → élevé → moyen)
+2. Tester chaque correction en environnement de dev
+3. Communiquer les changements aux utilisateurs si nécessaire
+4. Planifier un audit de suivi dans 3-6 mois
+
+### Automatisation
+
+1. Planifier l'audit mensuel (Task Scheduler)
+2. Envoyer le rapport automatiquement par email
+3. Créer des alertes sur les non-conformités critiques
+4. Maintenir un historique des audits
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise de la sécurité Windows Server
+- Connaissance des benchmarks de sécurité (CIS, ANSSI)
+- Scripting PowerShell avancé
+
+### Approche proactive
+
+- Audit régulier pour prévenir les failles
+- Automatisation des vérifications
+- Priorisation des risques
+
+### Utilisation stratégique de l'IA
+
+- Génération de scripts d'audit complets
+- Analyse rapide des résultats
+- Recommandations actionnables
+
+### Rigueur professionnelle
+
+- Tests avant application en production
+- Documentation complète
+- Respect des standards de l'industrie
+
+**Message au recruteur** : Ce guide démontre un administrateur système capable d'auditer et de sécuriser efficacement une infrastructure Windows Server en exploitant l'IA pour automatiser les vérifications et accélérer l'analyse. La méthode est reproductible, scalable et conforme aux standards de sécurité de l'industrie, garantissant une infrastructure robuste et conforme.

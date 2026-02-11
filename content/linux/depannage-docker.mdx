@@ -1,0 +1,590 @@
+# Dépannage Docker avec assistance IA
+
+## Objectif
+
+Diagnostiquer et résoudre rapidement les problèmes courants Docker (containers qui ne démarrent pas, erreurs réseau, volumes, performances) en exploitant l'IA pour analyser les logs, identifier les causes et proposer des solutions concrètes.
+
+## Contexte entreprise
+
+Une startup tech de 15 développeurs utilise Docker pour son environnement de développement et production. Problèmes rencontrés quotidiennement :
+- Containers qui crashent au démarrage
+- Erreurs réseau entre containers
+- Volumes montés incorrectement
+- Build d'images qui échoue
+- Performances dégradées
+
+**Infrastructure** :
+- Docker Engine 24.0 sur Ubuntu 22.04
+- Docker Compose pour orchestration
+- 25 containers en production
+- 10-15 containers par environnement dev
+
+**Objectif** : Réduire le temps de dépannage de 70% grâce à l'IA.
+
+## Problème
+
+Dépanner Docker manuellement implique :
+- Analyser des logs verbeux et techniques
+- Comprendre les erreurs réseau complexes
+- Diagnostiquer les problèmes de volumes/permissions
+- Tester différentes solutions une par une
+- Consulter la documentation Docker volumineuse
+
+**Temps moyen de dépannage** : 30-60 minutes par incident
+
+**Difficultés** :
+- Messages d'erreur cryptiques
+- Multiples causes possibles pour un même symptôme
+- Documentation éparpillée
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+```bash
+# Consulter les logs container
+docker logs container_name
+
+# Inspecter la configuration
+docker inspect container_name
+
+# Vérifier le réseau
+docker network inspect network_name
+
+# Rechercher l'erreur sur Google/Stack Overflow
+```
+
+### Limites
+
+- Processus d'essai-erreur long
+- Logs difficiles à interpréter
+- Multiples sources à consulter
+
+## Apport de l'IA
+
+L'IA permet de :
+- Analyser instantanément des logs Docker complexes
+- Identifier la cause racine en quelques secondes
+- Proposer des solutions étape par étape
+- Expliquer les erreurs en langage clair
+- Générer des commandes de correction
+
+**Temps avec IA** : 5-15 minutes par incident
+
+**Gain de productivité** : 70-80%
+
+## Problèmes courants et résolutions
+
+### Problème 1 : Container ne démarre pas
+
+**Symptôme** :
+```bash
+docker ps -a
+# STATUS: Exited (1) 2 seconds ago
+```
+
+**Logs** :
+```bash
+docker logs my-app
+# Error: Cannot find module '/app/index.js'
+```
+
+**Prompt IA** :
+```
+Erreur Docker : Container Node.js ne démarre pas
+
+Logs :
+Error: Cannot find module '/app/index.js'
+
+Dockerfile :
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+CMD ["node", "index.js"]
+
+Quelle est la cause et comment corriger ?
+```
+
+**Réponse IA** :
+```
+Cause : Le fichier index.js n'existe pas dans /app du container.
+
+Causes probables :
+1. .dockerignore bloque index.js
+2. Fichier nommé différemment (app.js ?)
+3. COPY . . échoue
+
+Solution :
+1. Vérifier .dockerignore
+cat .dockerignore
+# Si index.js est listé, le retirer
+
+2. Vérifier le nom du fichier
+ls -la index.js
+# Doit exister à la racine
+
+3. Rebuild avec cache désactivé
+docker build --no-cache -t my-app .
+docker run my-app
+```
+
+### Problème 2 : Erreur réseau entre containers
+
+**Symptôme** :
+```bash
+# Container app ne peut pas joindre container db
+curl: (6) Could not resolve host: db
+```
+
+**Docker Compose** :
+```yaml
+services:
+  app:
+    image: my-app
+    depends_on:
+      - database
+  database:
+    image: postgres:15
+```
+
+**Prompt IA** :
+```
+Docker Compose : Container "app" ne peut pas résoudre "db"
+
+Erreur : Could not resolve host: db
+
+docker-compose.yml :
+[copier yaml ci-dessus]
+
+Comment corriger ?
+```
+
+**Réponse IA** :
+```
+Cause : Le nom du service est "database" mais le code tente de se connecter à "db".
+
+Docker Compose crée automatiquement un alias DNS basé sur le nom du service.
+
+Solutions :
+1. Modifier le nom du service dans docker-compose.yml
+services:
+  db:  # Renommé de "database" à "db"
+    image: postgres:15
+
+2. OU ajouter un alias réseau
+services:
+  database:
+    image: postgres:15
+    networks:
+      default:
+        aliases:
+          - db
+
+3. OU modifier le code pour utiliser "database" au lieu de "db"
+```
+
+### Problème 3 : Volumes permissions denied
+
+**Symptôme** :
+```bash
+docker run -v $(pwd)/data:/app/data my-app
+# Error: EACCES: permission denied, open '/app/data/file.txt'
+```
+
+**Prompt IA** :
+```
+Docker volume : Permission denied sur fichiers
+
+Erreur : EACCES: permission denied, open '/app/data/file.txt'
+
+Commande :
+docker run -v $(pwd)/data:/app/data my-app
+
+Container utilise USER node (UID 1000)
+Host : Ubuntu 22.04
+
+Comment corriger ?
+```
+
+**Réponse IA** :
+```
+Cause : Conflit de permissions entre l'utilisateur du container (node, UID 1000)
+et le propriétaire des fichiers sur l'hôte.
+
+Solutions :
+
+1. Changer propriétaire sur l'hôte
+sudo chown -R 1000:1000 ./data
+
+2. OU utiliser un volume nommé (géré par Docker)
+docker volume create app_data
+docker run -v app_data:/app/data my-app
+
+3. OU exécuter le container en root (non recommandé)
+docker run --user root -v $(pwd)/data:/app/data my-app
+
+Recommandation : Solution 1 ou 2
+```
+
+### Problème 4 : Build échoue
+
+**Symptôme** :
+```bash
+docker build -t my-app .
+# ERROR: failed to solve: process "/bin/sh -c npm install" did not complete successfully
+```
+
+**Dockerfile** :
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+```
+
+**Prompt IA** :
+```
+Docker build : npm install échoue
+
+Erreur complète :
+ERROR [4/4] RUN npm install
+npm ERR! network request to https://registry.npmjs.org/express failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+npm ERR! network This is a problem related to network connectivity.
+
+Comment corriger ?
+```
+
+**Réponse IA** :
+```
+Cause : Le build Docker ne peut pas accéder à Internet (DNS ou proxy).
+
+Diagnostic :
+1. Tester DNS depuis le host
+ping registry.npmjs.org
+
+2. Vérifier configuration Docker daemon
+cat /etc/docker/daemon.json
+# Chercher "dns" ou "registry-mirrors"
+
+Solutions :
+
+1. Si DNS ne fonctionne pas sur host, corriger d'abord
+
+2. Configurer DNS dans /etc/docker/daemon.json
+{
+  "dns": ["8.8.8.8", "8.8.4.4"]
+}
+
+sudo systemctl restart docker
+
+3. Si derrière un proxy
+{
+  "proxies": {
+    "http-proxy": "http://proxy.example.com:8080",
+    "https-proxy": "http://proxy.example.com:8080"
+  }
+}
+
+4. Utiliser un registry mirror
+{
+  "registry-mirrors": ["https://mirror.gcr.io"]
+}
+```
+
+### Problème 5 : Container consomme trop de RAM
+
+**Symptôme** :
+```bash
+docker stats
+# CONTAINER   MEM USAGE / LIMIT     MEM %
+# my-app      1.8GiB / 2GiB         90%
+```
+
+**Prompt IA** :
+```
+Docker : Container consomme 90% RAM allouée
+
+Application : Node.js + React SSR
+Limite : 2 GB
+Utilisation : 1.8 GB (90%)
+
+Comment réduire l'utilisation mémoire ?
+```
+
+**Réponse IA** :
+```
+Causes probables :
+1. Memory leak dans l'application
+2. Trop de workers/threads
+3. Cache non configuré
+4. Limite trop basse pour l'application
+
+Diagnostic :
+
+1. Profiler l'application Node.js
+docker exec -it my-app node --inspect=0.0.0.0:9229 index.js
+# Utiliser Chrome DevTools pour profiling
+
+2. Vérifier le nombre de workers
+docker exec my-app ps aux
+# Compter les processus Node
+
+Solutions :
+
+1. Optimiser le code (memory leaks)
+# Utiliser heap snapshot pour identifier
+
+2. Limiter les workers si clustering
+PM2_INSTANCES=2 pm2 start app.js
+
+3. Augmenter la limite si justifié
+docker run -m 4g my-app
+
+4. Activer swap si OOM
+{
+  "default-ulimits": {
+    "memlock": {
+      "Hard": -1,
+      "Name": "memlock",
+      "Soft": -1
+    }
+  }
+}
+```
+
+## Scripts / Commandes / Configurations
+
+### Commandes de diagnostic essentielles
+
+```bash
+# Logs (dernières 100 lignes)
+docker logs --tail 100 container_name
+
+# Logs en temps réel
+docker logs -f container_name
+
+# Logs avec timestamps
+docker logs -t container_name
+
+# Inspecter configuration complète
+docker inspect container_name | jq
+
+# Statistiques ressources
+docker stats --no-stream
+
+# Processus dans le container
+docker exec container_name ps aux
+
+# Variables d'environnement
+docker exec container_name env
+
+# Réseau
+docker network inspect network_name
+
+# Volumes
+docker volume inspect volume_name
+
+# Exec shell pour debug interactif
+docker exec -it container_name sh
+# ou
+docker exec -it container_name bash
+
+# Événements Docker en temps réel
+docker events
+
+# Tester connectivité réseau
+docker exec container_name ping autre_container
+
+# Vérifier ports exposés
+docker port container_name
+```
+
+### Script d'auto-diagnostic
+
+```bash
+#!/bin/bash
+# docker-troubleshoot.sh
+# Diagnostic automatique d'un container
+
+CONTAINER=$1
+
+if [ -z "$CONTAINER" ]; then
+    echo "Usage: $0 <container_name>"
+    exit 1
+fi
+
+echo "=== Diagnostic Docker : $CONTAINER ==="
+
+# Status
+echo -e "\n[Status]"
+docker ps -a --filter "name=$CONTAINER" --format "table {{.Status}}"
+
+# Logs (dernières 20 lignes)
+echo -e "\n[Logs - 20 dernières lignes]"
+docker logs --tail 20 $CONTAINER 2>&1
+
+# Resources
+echo -e "\n[Ressources]"
+docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" $CONTAINER
+
+# Network
+echo -e "\n[Réseau]"
+NETWORK=$(docker inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{end}}' $CONTAINER)
+echo "Network: $NETWORK"
+
+# Ports
+echo -e "\n[Ports exposés]"
+docker port $CONTAINER
+
+# Volumes
+echo -e "\n[Volumes]"
+docker inspect -f '{{range .Mounts}}{{.Source}} -> {{.Destination}} ({{.Type}}){{"\n"}}{{end}}' $CONTAINER
+
+# Variables d'environnement (masquer secrets)
+echo -e "\n[Variables d'environnement]"
+docker exec $CONTAINER env | grep -v "PASSWORD\|SECRET\|KEY" | sort
+
+echo -e "\n=== Fin diagnostic ==="
+```
+
+### Template prompt d'urgence
+
+```
+Erreur Docker urgente - Besoin aide rapide
+
+**Symptôme :**
+[Décrire le problème en 1 ligne]
+
+**Erreur exacte :**
+[Copier-coller le message d'erreur]
+
+**Commande exécutée :**
+[docker run / docker-compose up / docker build...]
+
+**Contexte :**
+- Image : [nom:tag]
+- OS hôte : [Ubuntu 22.04 / etc.]
+- Docker version : [docker --version]
+
+**Logs pertinents :**
+[docker logs container_name --tail 50]
+
+**Questions :**
+1. Quelle est la cause probable ?
+2. Comment corriger rapidement (< 5 min) ?
+3. Solution durable pour éviter récidive ?
+```
+
+### docker-compose.yml debug
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    image: my-app
+    # Logging configuré
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+    # Restart automatique
+    restart: unless-stopped
+
+    # Limites ressources
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # Variables d'environnement (debug)
+    environment:
+      - DEBUG=*
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+```
+
+## Risques et limites
+
+### Risques de correction
+
+**Restart sans investigation** : Redémarrer un container peut masquer le problème temporairement sans le résoudre.
+
+**Modifications en production** : Tester d'abord en dev avant de modifier des containers production.
+
+### Limites de l'IA
+
+**Contexte incomplet** : L'IA analyse ce qu'on lui fournit. Si les logs sont tronqués, le diagnostic peut être inexact.
+
+**Configurations spécifiques** : Des setups complexes (networking custom, volumes avancés) peuvent nécessiter expertise humaine.
+
+### Risques opérationnels
+
+**Perte de données** : Supprimer un volume par erreur peut causer une perte de données. Toujours sauvegarder.
+
+**Downtime** : Restart de containers en production peut causer une interruption de service.
+
+## Bonnes pratiques
+
+### Prévention
+
+1. Activer healthchecks sur tous les containers
+2. Configurer le logging (rotation, niveau debug si nécessaire)
+3. Limiter les ressources (CPU, RAM) pour éviter saturation
+4. Utiliser des volumes nommés (plus fiables que bind mounts)
+
+### Diagnostic
+
+1. Toujours commencer par `docker logs`
+2. Inspecter la configuration avec `docker inspect`
+3. Vérifier les ressources avec `docker stats`
+4. Tester la connectivité réseau si applicable
+
+### Documentation
+
+1. Documenter les incidents résolus (base de connaissances)
+2. Créer des runbooks pour problèmes courants
+3. Maintenir un changelog des modifications Docker
+
+### Monitoring
+
+1. Mettre en place un monitoring (Prometheus + Grafana)
+2. Alertes sur containers qui redémarrent fréquemment
+3. Alertes sur usage ressources > 80%
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise de Docker (containers, volumes, réseaux)
+- Diagnostic méthodique de problèmes complexes
+- Compréhension des architectures microservices
+
+### Efficacité
+
+- Réduction du temps de dépannage de 70-80%
+- Résolution rapide grâce à l'IA
+- Autonomie dans la résolution de problèmes
+
+### Utilisation stratégique de l'IA
+
+- Analyse rapide de logs complexes
+- Recommandations actionnables
+- Gain de temps sans compromis sur la qualité
+
+**Message au recruteur** : Ce guide démontre un ingénieur DevOps capable de diagnostiquer et résoudre rapidement des problèmes Docker en exploitant l'IA pour accélérer l'analyse. La méthode est rigoureuse (logs → diagnostic → solution → validation), garantissant des résolutions durables et documentées.

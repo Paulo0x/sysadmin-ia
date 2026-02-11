@@ -1,0 +1,651 @@
+# Script automatisé pour gestion utilisateurs AD avec IA
+
+## Objectif
+
+Développer des scripts PowerShell robustes pour automatiser la gestion des comptes utilisateurs Active Directory (création, modification, désactivation), en exploitant l'IA pour générer du code de qualité professionnelle avec gestion d'erreurs et logging.
+
+## Contexte entreprise
+
+Une entreprise de 300 employés avec un turnover de 5-10 personnes par mois doit gérer :
+- Création de nouveaux comptes utilisateurs (onboarding)
+- Modification de comptes (changements de service, promotions)
+- Désactivation de comptes (départs, congés longue durée)
+- Réactivation de comptes (retours de congés)
+
+Chaque opération manuelle prend 10-15 minutes (création de compte, attribution aux groupes, configuration des partages, email de bienvenue). Sur un mois, cela représente 2-3 heures de travail répétitif.
+
+L'objectif est d'automatiser ces tâches tout en garantissant la fiabilité et la traçabilité.
+
+## Problème
+
+Gérer manuellement les comptes AD implique :
+- Ouvrir Active Directory Users and Computers
+- Créer le compte avec toutes les propriétés
+- L'affecter aux bons groupes de sécurité
+- Configurer les attributs (téléphone, service, manager)
+- Créer le répertoire personnel
+- Attribuer les permissions
+- Envoyer un email de bienvenue
+
+**Temps moyen par compte** : 10-15 minutes
+
+**Risques** :
+- Oubli d'étapes (groupes, permissions)
+- Erreurs de saisie (noms, logins)
+- Incohérence dans les conventions de nommage
+- Absence de traçabilité
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+1. Ouvrir ADUC (Active Directory Users and Computers)
+2. Naviguer dans l'OU appropriée
+3. Clic droit > Nouveau > Utilisateur
+4. Remplir tous les champs manuellement
+5. Définir le mot de passe temporaire
+6. Affecter aux groupes un par un
+7. Configurer les attributs additionnels
+8. Créer manuellement le dossier personnel
+
+### Scripts basiques
+
+Scripts PowerShell simples sans gestion d'erreurs ni logging :
+
+```powershell
+# Script basique (dangereux en production)
+New-ADUser -Name "Jean Dupont" -SamAccountName "jean.dupont"
+```
+
+### Limites
+
+- Processus manuel long et répétitif
+- Risque d'erreurs humaines
+- Scripts basiques non robustes
+- Absence de logging et de validation
+
+## Apport de l'IA
+
+L'IA permet de :
+- Générer des scripts PowerShell complets avec gestion d'erreurs
+- Inclure automatiquement des fonctionnalités avancées (logging, validation)
+- Adapter le code aux standards de l'entreprise
+- Créer des scripts modulaires et réutilisables
+- Documenter le code avec des commentaires clairs
+
+**Temps de développement** :
+- Sans IA : 2-4 heures pour un script robuste
+- Avec IA : 30-60 minutes (génération + adaptation + tests)
+
+**Gain de productivité** : 70-80%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Définir le cahier des charges
+
+Lister précisément les fonctionnalités requises :
+
+**Script de création d'utilisateur** :
+- Import depuis CSV (prénom, nom, service, téléphone, manager)
+- Génération automatique du login (prenom.nom)
+- Génération mot de passe temporaire sécurisé
+- Création dans l'OU correspondant au service
+- Attribution automatique aux groupes de sécurité selon le service
+- Création du répertoire personnel sur le serveur de fichiers
+- Attribution des permissions NTFS sur le dossier
+- Logging de toutes les opérations
+- Gestion des erreurs (utilisateur existant, échec de création)
+- Rapport de synthèse en fin d'exécution
+
+### Étape 2 : Rédiger un prompt structuré
+
+**Prompt efficace** :
+
+```
+Génère un script PowerShell professionnel pour automatiser la création
+d'utilisateurs Active Directory à partir d'un fichier CSV.
+
+**Contexte :**
+- Entreprise de 300 utilisateurs
+- Active Directory : entreprise.local
+- Windows Server 2019, PowerShell 5.1
+- Structure OU : OU=[Service],OU=Utilisateurs,DC=entreprise,DC=local
+- Serveur de fichiers : \\SRV-FILES\HomeDirectories\
+
+**Fichier CSV d'entrée (colonnes) :**
+- Prenom
+- Nom
+- Service (IT, Comptabilite, Commercial, RH)
+- Telephone
+- Manager (SamAccountName du manager)
+
+**Fonctionnalités attendues :**
+1. Validation du fichier CSV (existence, colonnes requises)
+2. Pour chaque ligne :
+   a. Génération login : prenom.nom (minuscules, gestion accents)
+   b. Vérification que l'utilisateur n'existe pas déjà
+   c. Génération mot de passe temporaire sécurisé (12 caractères)
+   d. Création du compte AD dans l'OU correspondante
+   e. Attribution aux groupes selon le service :
+      - IT → "IT_Users", "VPN_Access"
+      - Comptabilite → "Compta_Users", "Finance_Apps"
+      - Commercial → "Commercial_Users", "VPN_Access"
+      - RH → "RH_Users", "HR_Apps"
+   f. Création du répertoire personnel : \\SRV-FILES\HomeDirectories\login
+   g. Attribution permissions NTFS (Full Control pour l'utilisateur uniquement)
+   h. Définition du manager
+   i. Activation du compte avec ChangePasswordAtLogon
+3. Logging de chaque opération (succès/échec) dans un fichier log
+4. Gestion d'erreurs complète (try/catch sur chaque opération)
+5. Rapport de synthèse en fin d'exécution (créés, échecs, ignorés)
+6. Paramètres :
+   - CSVPath (obligatoire)
+   - LogPath (optionnel, défaut : script_dir\creation.log)
+   - WhatIf (simulation sans création réelle)
+
+**Exigences techniques :**
+- Code commenté en français
+- Fonctions réutilisables
+- Validation des prérequis (module AD, permissions, accès fichiers)
+- Affichage console coloré (succès=vert, erreur=rouge, warning=jaune)
+- Export d'un rapport CSV final avec les logins et mots de passe
+
+**Sécurité :**
+- Mots de passe générés aléatoirement
+- Ne jamais afficher les mots de passe en console
+- Rapport des credentials stocké de manière sécurisée
+
+Format : Code PowerShell complet, prêt à l'emploi
+```
+
+### Étape 3 : Générer le script avec l'IA
+
+L'IA va produire un script complet. Exemple de résultat :
+
+```powershell
+<#
+.SYNOPSIS
+    Création automatisée d'utilisateurs Active Directory depuis CSV
+.DESCRIPTION
+    Ce script crée des comptes AD à partir d'un fichier CSV avec :
+    - Génération automatique des logins et mots de passe
+    - Attribution aux groupes selon le service
+    - Création des répertoires personnels
+    - Logging complet des opérations
+    Généré avec assistance IA - Revu et validé par [Votre nom]
+.PARAMETER CSVPath
+    Chemin vers le fichier CSV source
+.PARAMETER LogPath
+    Chemin du fichier log (optionnel)
+.PARAMETER WhatIf
+    Mode simulation sans création réelle
+.EXAMPLE
+    .\New-ADUsersFromCSV.ps1 -CSVPath "C:\Import\nouveaux_users.csv"
+.EXAMPLE
+    .\New-ADUsersFromCSV.ps1 -CSVPath "C:\Import\users.csv" -WhatIf
+.NOTES
+    Prérequis : Module ActiveDirectory, permissions Domain Admin ou User Admin
+#>
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [Parameter(Mandatory=$true)]
+    [ValidateScript({Test-Path $_})]
+    [string]$CSVPath,
+
+    [Parameter(Mandatory=$false)]
+    [string]$LogPath = "$PSScriptRoot\creation_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt",
+
+    [Parameter(Mandatory=$false)]
+    [string]$CredentialsReportPath = "$PSScriptRoot\credentials_report_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+)
+
+# ===================================
+# VÉRIFICATION DES PRÉREQUIS
+# ===================================
+
+Write-Host "=== Création automatisée d'utilisateurs AD ===" -ForegroundColor Cyan
+
+# Vérification module ActiveDirectory
+if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
+    Write-Error "Le module ActiveDirectory n'est pas installé."
+    exit 1
+}
+Import-Module ActiveDirectory -ErrorAction Stop
+
+# Vérification du fichier CSV
+if (-not (Test-Path $CSVPath)) {
+    Write-Error "Fichier CSV introuvable : $CSVPath"
+    exit 1
+}
+
+# ===================================
+# FONCTIONS UTILITAIRES
+# ===================================
+
+function Write-Log {
+    param(
+        [string]$Message,
+        [ValidateSet("INFO", "SUCCESS", "WARNING", "ERROR")]
+        [string]$Level = "INFO"
+    )
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "[$timestamp][$Level] $Message"
+
+    # Écriture dans le fichier log
+    Add-Content -Path $LogPath -Value $logMessage
+
+    # Affichage console avec couleur
+    switch ($Level) {
+        "SUCCESS" { Write-Host $logMessage -ForegroundColor Green }
+        "WARNING" { Write-Host $logMessage -ForegroundColor Yellow }
+        "ERROR"   { Write-Host $logMessage -ForegroundColor Red }
+        default   { Write-Host $logMessage }
+    }
+}
+
+function Generate-SecurePassword {
+    # Génère un mot de passe aléatoire sécurisé de 12 caractères
+    $length = 12
+    $chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%"
+    $password = -join ((1..$length) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+    return $password
+}
+
+function Remove-Accents {
+    param([string]$Text)
+    # Supprime les accents pour génération des logins
+    $normalized = $Text.Normalize([Text.NormalizationForm]::FormD)
+    $result = $normalized -replace '\p{M}', ''
+    return $result
+}
+
+function Get-ServiceOUPath {
+    param([string]$Service)
+    # Retourne le chemin de l'OU selon le service
+    $ouPaths = @{
+        "IT"           = "OU=IT,OU=Utilisateurs,DC=entreprise,DC=local"
+        "Comptabilite" = "OU=Comptabilite,OU=Utilisateurs,DC=entreprise,DC=local"
+        "Commercial"   = "OU=Commercial,OU=Utilisateurs,DC=entreprise,DC=local"
+        "RH"           = "OU=RH,OU=Utilisateurs,DC=entreprise,DC=local"
+    }
+    return $ouPaths[$Service]
+}
+
+function Get-ServiceGroups {
+    param([string]$Service)
+    # Retourne les groupes de sécurité selon le service
+    $groupMappings = @{
+        "IT"           = @("IT_Users", "VPN_Access")
+        "Comptabilite" = @("Compta_Users", "Finance_Apps")
+        "Commercial"   = @("Commercial_Users", "VPN_Access")
+        "RH"           = @("RH_Users", "HR_Apps")
+    }
+    return $groupMappings[$Service]
+}
+
+# ===================================
+# INITIALISATION
+# ===================================
+
+Write-Log "Début de l'exécution" "INFO"
+Write-Log "Fichier CSV : $CSVPath" "INFO"
+
+$createdCount = 0
+$skippedCount = 0
+$errorCount = 0
+$credentialsList = @()
+
+# Import du CSV
+try {
+    $users = Import-Csv -Path $CSVPath -Delimiter ";" -Encoding UTF8
+    Write-Log "Import CSV réussi : $($users.Count) utilisateurs détectés" "SUCCESS"
+} catch {
+    Write-Log "Erreur lors de l'import du CSV : $_" "ERROR"
+    exit 1
+}
+
+# Validation des colonnes
+$requiredColumns = @("Prenom", "Nom", "Service", "Telephone", "Manager")
+$csvColumns = $users[0].PSObject.Properties.Name
+
+foreach ($col in $requiredColumns) {
+    if ($col -notin $csvColumns) {
+        Write-Log "Colonne manquante dans le CSV : $col" "ERROR"
+        exit 1
+    }
+}
+
+Write-Log "Colonnes CSV validées" "SUCCESS"
+
+# ===================================
+# TRAITEMENT DES UTILISATEURS
+# ===================================
+
+foreach ($user in $users) {
+    # Génération du login
+    $prenomClean = (Remove-Accents $user.Prenom).ToLower()
+    $nomClean = (Remove-Accents $user.Nom).ToLower()
+    $login = "$prenomClean.$nomClean"
+
+    Write-Host "`n--- Traitement de $($user.Prenom) $($user.Nom) ---" -ForegroundColor Cyan
+
+    # Vérification si l'utilisateur existe déjà
+    try {
+        $existingUser = Get-ADUser -Filter "SamAccountName -eq '$login'" -ErrorAction SilentlyContinue
+
+        if ($existingUser) {
+            Write-Log "SKIP : L'utilisateur $login existe déjà" "WARNING"
+            $skippedCount++
+            continue
+        }
+    } catch {
+        Write-Log "Erreur lors de la vérification de $login : $_" "ERROR"
+        $errorCount++
+        continue
+    }
+
+    # Génération du mot de passe
+    $tempPassword = Generate-SecurePassword
+    $securePassword = ConvertTo-SecureString $tempPassword -AsPlainText -Force
+
+    # Récupération de l'OU et des groupes
+    $ouPath = Get-ServiceOUPath -Service $user.Service
+    $groups = Get-ServiceGroups -Service $user.Service
+
+    if (-not $ouPath) {
+        Write-Log "Service inconnu pour $login : $($user.Service)" "ERROR"
+        $errorCount++
+        continue
+    }
+
+    # Création de l'utilisateur AD
+    try {
+        if ($PSCmdlet.ShouldProcess($login, "Créer le compte AD")) {
+            $userParams = @{
+                SamAccountName        = $login
+                UserPrincipalName     = "$login@entreprise.local"
+                Name                  = "$($user.Prenom) $($user.Nom)"
+                GivenName             = $user.Prenom
+                Surname               = $user.Nom
+                DisplayName           = "$($user.Prenom) $($user.Nom)"
+                Description           = $user.Service
+                Department            = $user.Service
+                OfficePhone           = $user.Telephone
+                Manager               = $user.Manager
+                AccountPassword       = $securePassword
+                Path                  = $ouPath
+                Enabled               = $true
+                ChangePasswordAtLogon = $true
+            }
+
+            New-ADUser @userParams -ErrorAction Stop
+            Write-Log "Utilisateur $login créé avec succès" "SUCCESS"
+            $createdCount++
+        }
+    } catch {
+        Write-Log "Échec de création de $login : $_" "ERROR"
+        $errorCount++
+        continue
+    }
+
+    # Attribution aux groupes de sécurité
+    foreach ($group in $groups) {
+        try {
+            if ($PSCmdlet.ShouldProcess($login, "Ajouter au groupe $group")) {
+                Add-ADGroupMember -Identity $group -Members $login -ErrorAction Stop
+                Write-Log "Ajout de $login au groupe $group" "SUCCESS"
+            }
+        } catch {
+            Write-Log "Échec d'ajout de $login au groupe $group : $_" "ERROR"
+        }
+    }
+
+    # Création du répertoire personnel
+    $homeDirectory = "\\SRV-FILES\HomeDirectories\$login"
+
+    try {
+        if ($PSCmdlet.ShouldProcess($homeDirectory, "Créer le répertoire personnel")) {
+            $localPath = $homeDirectory -replace '\\\\SRV-FILES\\HomeDirectories', 'D:\HomeDirectories'
+
+            if (-not (Test-Path $localPath)) {
+                New-Item -Path $localPath -ItemType Directory -Force | Out-Null
+                Write-Log "Répertoire personnel créé : $localPath" "SUCCESS"
+
+                # Attribution des permissions NTFS (Full Control pour l'utilisateur)
+                $acl = Get-Acl $localPath
+                $permission = "$env:USERDOMAIN\$login","FullControl","ContainerInherit,ObjectInherit","None","Allow"
+                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission
+                $acl.SetAccessRule($accessRule)
+                Set-Acl -Path $localPath -AclObject $acl
+
+                Write-Log "Permissions NTFS configurées pour $login" "SUCCESS"
+
+                # Configuration de l'attribut HomeDirectory dans AD
+                Set-ADUser -Identity $login -HomeDirectory $homeDirectory -HomeDrive "H:"
+            }
+        }
+    } catch {
+        Write-Log "Échec de création du répertoire personnel pour $login : $_" "ERROR"
+    }
+
+    # Ajout au rapport des credentials
+    $credentialsList += [PSCustomObject]@{
+        Login          = $login
+        NomComplet     = "$($user.Prenom) $($user.Nom)"
+        Service        = $user.Service
+        MotDePasseTemp = $tempPassword
+        Email          = "$login@entreprise.local"
+    }
+}
+
+# ===================================
+# RAPPORT FINAL
+# ===================================
+
+Write-Host "`n=== RÉSUMÉ DE L'EXÉCUTION ===" -ForegroundColor Cyan
+
+$summary = @"
+
+Date : $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+Utilisateurs créés : $createdCount
+Utilisateurs ignorés (déjà existants) : $skippedCount
+Erreurs : $errorCount
+
+"@
+
+Write-Log $summary "INFO"
+
+# Export du rapport des credentials
+if ($credentialsList.Count -gt 0) {
+    $credentialsList | Export-Csv -Path $CredentialsReportPath -NoTypeInformation -Encoding UTF8
+    Write-Log "Rapport des credentials exporté : $CredentialsReportPath" "SUCCESS"
+    Write-Host "⚠️  IMPORTANT : Sécurisez le fichier des credentials et distribuez-le de manière sécurisée." -ForegroundColor Yellow
+}
+
+Write-Log "Fin de l'exécution" "INFO"
+```
+
+### Étape 4 : Tester le script
+
+#### Test 1 : Mode simulation (-WhatIf)
+
+```powershell
+.\New-ADUsersFromCSV.ps1 -CSVPath "C:\Import\test_users.csv" -WhatIf
+```
+
+Vérifier que les messages "WhatIf" s'affichent sans créer réellement les comptes.
+
+#### Test 2 : Exécution réelle sur un échantillon
+
+Créer un CSV de test avec 2-3 utilisateurs :
+
+```csv
+Prenom;Nom;Service;Telephone;Manager
+Jean;Dupont;IT;0123456789;admin.it
+Marie;Martin;Commercial;0123456788;manager.commercial
+```
+
+Exécuter :
+```powershell
+.\New-ADUsersFromCSV.ps1 -CSVPath "C:\Import\test_users.csv"
+```
+
+#### Test 3 : Validation
+
+Vérifier :
+- Les comptes sont créés dans les bonnes OU
+- Les groupes sont correctement attribués
+- Les répertoires personnels existent
+- Le fichier log est généré
+- Le rapport des credentials est créé
+
+### Étape 5 : Adapter et documenter
+
+1. Ajuster les chemins OU selon votre environnement
+2. Modifier les mappings de groupes selon vos besoins
+3. Ajouter un en-tête de documentation
+4. Versionner le script (Git ou dossier partagé)
+
+### Étape 6 : Déployer en production
+
+1. Former les utilisateurs du script (RH, IT)
+2. Créer une procédure d'utilisation
+3. Planifier des revues régulières du code
+4. Monitorer les logs pour détecter les anomalies
+
+## Scripts / Commandes / Configurations
+
+### Exemple de fichier CSV d'entrée
+
+```csv
+Prenom;Nom;Service;Telephone;Manager
+Jean;Dupont;IT;01 23 45 67 89;admin.it
+Marie;Martin;Comptabilite;01 23 45 67 88;responsable.compta
+Pierre;Durand;Commercial;01 23 45 67 87;directeur.commercial
+Sophie;Bernard;RH;01 23 45 67 86;responsable.rh
+```
+
+### Script de désactivation d'utilisateurs
+
+Demander à l'IA :
+
+```
+Génère un script PowerShell pour désactiver des comptes AD à partir d'un CSV.
+
+Le script doit :
+1. Importer un CSV avec les logins à désactiver
+2. Pour chaque utilisateur :
+   - Désactiver le compte
+   - Retirer des groupes de sécurité (sauf Domain Users)
+   - Déplacer vers OU=Disabled,OU=Utilisateurs,DC=entreprise,DC=local
+   - Ajouter une description "Désactivé le [date] - [raison]"
+3. Logging complet
+4. Rapport des comptes désactivés
+
+Inclure gestion d'erreurs, paramètre WhatIf, code commenté.
+```
+
+### Script de modification en masse
+
+Pour changer des attributs (téléphone, service) :
+
+```
+Génère un script PowerShell pour modifier des attributs AD en masse depuis CSV.
+
+CSV avec colonnes : Login, NouveauService, NouveauTelephone, NouveauManager
+
+Le script doit :
+- Modifier le service (Department)
+- Modifier le téléphone (OfficePhone)
+- Changer le manager
+- Déplacer dans la nouvelle OU si changement de service
+- Mettre à jour les groupes de sécurité
+- Logger chaque modification
+
+Gestion d'erreurs, WhatIf, validation des entrées.
+```
+
+## Risques et limites
+
+### Risques de sécurité
+
+**Rapport des credentials** : Le fichier CSV contenant les mots de passe temporaires est sensible. Le sécuriser (permissions NTFS, chiffrement) et le supprimer après distribution.
+
+**Permissions excessives** : Le script nécessite des privilèges élevés (User Admin ou Domain Admin). Utiliser un compte de service dédié avec permissions minimales.
+
+### Limites de l'IA
+
+**Contexte spécifique** : L'IA génère du code générique. Il faut l'adapter aux conventions de votre entreprise (structure OU, groupes, chemins).
+
+**Bugs possibles** : Le code peut contenir des erreurs subtiles. Toujours tester en environnement de dev avant production.
+
+### Risques opérationnels
+
+**Création en masse** : Un CSV mal formé peut créer des centaines de comptes incorrects. Toujours tester sur un échantillon d'abord.
+
+**Impact sur les quotas** : La création de nombreux comptes peut saturer les quotas AD ou les espaces disque.
+
+## Bonnes pratiques
+
+### Développement
+
+1. Toujours générer avec gestion d'erreurs (try/catch)
+2. Inclure un mode -WhatIf pour simulation
+3. Logger toutes les opérations critiques
+4. Valider les entrées (CSV, paramètres)
+5. Utiliser des fonctions réutilisables
+
+### Tests
+
+1. Tester en mode -WhatIf avant toute exécution réelle
+2. Commencer par un échantillon de 2-3 utilisateurs
+3. Valider chaque étape (création, groupes, permissions)
+4. Vérifier les logs après chaque exécution
+5. Tester les cas d'erreur (utilisateur existant, OU inexistante)
+
+### Production
+
+1. Utiliser un compte de service dédié (pas votre compte personnel)
+2. Planifier les créations en dehors des heures de pointe
+3. Sauvegarder l'état AD avant exécution (snapshot si virtuel)
+4. Monitorer les logs après exécution
+5. Documenter chaque utilisation (date, nombre de comptes, responsable)
+
+### Sécurité
+
+1. Sécuriser le rapport des credentials (permissions restrictives)
+2. Distribuer les mots de passe par canal sécurisé (pas par email)
+3. Supprimer le rapport après distribution
+4. Auditer régulièrement les comptes créés
+5. Forcer le changement de mot de passe à la première connexion
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise avancée de PowerShell et Active Directory
+- Développement de scripts professionnels (gestion d'erreurs, logging, paramètres)
+- Connaissance des bonnes pratiques de développement
+
+### Automatisation et efficacité
+
+- Capacité à automatiser des tâches répétitives
+- Gain de temps significatif (10-15 min → 2 min par utilisateur)
+- Réduction des erreurs humaines
+
+### Rigueur et qualité
+
+- Code robuste avec validation et gestion d'erreurs
+- Documentation claire et commentaires explicatifs
+- Tests systématiques avant déploiement
+- Logging et traçabilité complets
+
+### Utilisation de l'IA
+
+- Exploitation intelligente de l'IA pour accélérer le développement
+- Adaptation et validation du code généré
+- Ne se contente pas de copier-coller, mais comprend et adapte
+
+**Message au recruteur** : Ce guide démontre un administrateur capable de développer des outils d'automatisation professionnels en exploitant l'IA pour accélérer le développement. Le code produit est robuste, documenté et respecte les bonnes pratiques, garantissant fiabilité et maintenabilité. Cette compétence est essentielle pour optimiser les opérations IT et réduire les tâches répétitives à faible valeur ajoutée.

@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-bg text-dark-text;
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(0, 240, 255, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(176, 0, 255, 0.05) 0%, transparent 50%);
+  }
+}
+
+@layer components {
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .prose-custom {
+    @apply prose prose-slate max-w-none;
+  }
+
+  .prose-custom pre {
+    @apply bg-dark-bg text-dark-text rounded-lg p-4 overflow-x-auto border border-dark-border;
+  }
+
+  .prose-custom code {
+    @apply bg-dark-card text-neon-cyan px-1.5 py-0.5 rounded text-sm font-mono border border-neon-cyan/30;
+  }
+
+  .prose-custom pre code {
+    @apply bg-transparent text-dark-text p-0 border-0;
+  }
+
+  .card {
+    @apply bg-dark-card rounded-lg shadow-lg hover:shadow-neon-cyan transition-all duration-300 p-6 border border-dark-border;
+  }
+
+  .card:hover {
+    border-color: rgba(0, 240, 255, 0.5);
+  }
+
+  .btn-primary {
+    @apply bg-gradient-cyberpunk hover:shadow-neon-cyan text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-dark-card hover:bg-dark-border text-neon-cyan font-semibold py-2 px-4 rounded-lg transition-colors duration-200 border border-neon-cyan/30 hover:border-neon-cyan;
+  }
+}

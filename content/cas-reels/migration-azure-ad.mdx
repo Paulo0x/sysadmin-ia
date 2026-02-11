@@ -1,0 +1,431 @@
+# Migration Active Directory vers Azure AD (Entra ID)
+
+## Contexte du projet
+
+**Entreprise** : PME française de 180 employés dans le conseil en informatique
+
+**Infrastructure existante** :
+- Active Directory on-premise (Windows Server 2019)
+- 180 comptes utilisateurs
+- 50 groupes de sécurité
+- 15 GPO actives
+- Serveurs de fichiers on-premise (2 TB de données)
+- Applications métier : ERP (web), CRM (Salesforce), outils Office
+
+**Objectif de la migration** :
+- Migrer vers Microsoft 365 E3
+- Adopter Azure AD (maintenant Microsoft Entra ID) comme annuaire principal
+- Activer l'authentification moderne (MFA, SSO, Conditional Access)
+- Réduire l'infrastructure on-premise
+- Permettre le travail hybride (bureau/télétravail)
+
+**Contraintes** :
+- Migration en douceur, sans interruption de service
+- Formation des utilisateurs minimale
+- Budget limité : 25 000€ pour le projet complet
+- Délai : 3 mois
+
+**Mon rôle** : Administrateur système en charge de la migration technique
+
+## Problème initial
+
+L'entreprise faisait face à plusieurs défis :
+
+1. **Infrastructure vieillissante** : Serveurs AD avec 8 ans d'âge, coût de renouvellement élevé
+2. **Complexité de gestion** : Gestion manuelle des comptes, GPO difficiles à maintenir
+3. **Sécurité limitée** : Pas de MFA, authentification par mot de passe uniquement
+4. **Télétravail compliqué** : VPN saturé, accès aux fichiers lent
+5. **Coûts cachés** : Maintenance serveurs, électricité, licences Windows Server
+
+## Solution mise en œuvre
+
+### Phase 1 : Audit et planification (2 semaines)
+
+#### Analyse de l'existant
+
+**Utilisation de l'IA pour l'audit** :
+
+J'ai extrait les données AD avec PowerShell :
+
+```powershell
+# Export des utilisateurs
+Get-ADUser -Filter * -Properties * | Export-Csv users_audit.csv
+
+# Export des groupes
+Get-ADGroup -Filter * -Properties Members | Export-Csv groups_audit.csv
+
+# Export des GPO
+Get-GPO -All | Export-Csv gpo_audit.csv
+```
+
+**Prompt pour analyse** :
+
+```
+Analyse cet audit Active Directory et identifie les points d'attention
+pour une migration vers Azure AD.
+
+Données :
+- 180 utilisateurs actifs
+- 50 groupes de sécurité
+- 15 GPO (gestion mots de passe, restrictions logiciels, mappages lecteurs)
+- Applications : ERP web (SAML), Salesforce (OAuth), Office 365 (déjà en place)
+
+Questions :
+1. Quels éléments AD ne seront pas transférables vers Azure AD ?
+2. Quelles GPO devront être remplacées par des alternatives Azure ?
+3. Quel mode de migration recommandes-tu (sync, cut-over, hybride) ?
+4. Quels sont les risques principaux ?
+```
+
+**Réponse de l'IA (synthèse)** :
+
+- **Non transférable** : GPO (à remplacer par Intune), lecteurs mappés (OneDrive/SharePoint)
+- **Mode recommandé** : Hybride avec Azure AD Connect pendant 3-6 mois, puis cut-over
+- **Risques** : Perte d'accès temporaire, incompatibilité applications legacy, résistance utilisateurs
+
+#### Plan de migration établi
+
+1. **Semaine 1-2** : Audit + Plan
+2. **Semaine 3-4** : Setup Azure AD Connect (synchronisation)
+3. **Semaine 5-6** : Migration des données vers SharePoint/OneDrive
+4. **Semaine 7-8** : Configuration MFA + Conditional Access
+5. **Semaine 9-10** : Migration applications (SSO)
+6. **Semaine 11-12** : Formation utilisateurs + Cut-over
+7. **Post-migration** : Monitoring + Support
+
+### Phase 2 : Setup Azure AD Connect (2 semaines)
+
+**Installation d'Azure AD Connect** :
+
+1. Provisionner une VM Windows Server 2022 dédiée
+2. Télécharger Azure AD Connect depuis Microsoft
+3. Exécuter l'installation avec mode Express
+
+**Configuration choisie** :
+- Password Hash Synchronization (PHS) pour authentification
+- Sync toutes les 30 minutes
+- Filtrage par OU (exclure comptes de service)
+
+```powershell
+# Vérifier la synchronisation
+Get-ADSyncScheduler
+
+# Forcer une sync manuelle
+Start-ADSyncSyncCycle -PolicyType Delta
+```
+
+**Validation** :
+
+Après 1h, vérification dans Azure AD :
+- 180 utilisateurs synchronisés ✓
+- 50 groupes synchronisés ✓
+- UPN matchant les emails ✓
+
+### Phase 3 : Migration des fichiers vers SharePoint/OneDrive (2 semaines)
+
+**Problématique** : 2 TB de données sur serveurs fichiers on-premise à migrer
+
+**Solution** : Migration Tool de Microsoft + SharePoint Online
+
+#### Utilisation de l'IA pour scripting
+
+**Prompt** :
+
+```
+Génère un script PowerShell pour migrer des dossiers utilisateurs
+depuis un serveur de fichiers vers OneDrive for Business.
+
+Contexte :
+- 180 utilisateurs
+- Dossiers dans \\SRV-FILES\Users\[username]
+- Moyenne 10 GB par utilisateur
+- Migration SharePoint Migration Tool (SPMT)
+
+Le script doit :
+1. Lister tous les dossiers utilisateurs
+2. Pour chaque utilisateur, créer un job de migration SPMT
+3. Logger chaque migration
+4. Générer un rapport (succès/échecs)
+```
+
+**Script généré (adapté)** :
+
+```powershell
+# Migration OneDrive avec SPMT
+$users = Get-ADUser -Filter * -Properties SamAccountName
+$sourceRoot = "\\SRV-FILES\Users"
+$logFile = "C:\Migration\migration_log.txt"
+
+foreach ($user in $users) {
+    $sourcePath = "$sourceRoot\$($user.SamAccountName)"
+    $targetUrl = "https://entreprise-my.sharepoint.com/personal/$($user.UserPrincipalName.Replace('@','_').Replace('.','_'))"
+
+    if (Test-Path $sourcePath) {
+        Write-Host "Migration de $($user.SamAccountName)..." -ForegroundColor Yellow
+
+        # Commande SPMT (via PowerShell Module)
+        Start-SPMTMigration -Source $sourcePath -Target $targetUrl -Verbose
+
+        "$((Get-Date)) - Migration de $($user.SamAccountName) : OK" | Out-File $logFile -Append
+    }
+}
+```
+
+**Résultat** : Migration complétée en 10 jours (migration par vagues de 20 utilisateurs/jour)
+
+### Phase 4 : Activation MFA et Conditional Access (1 semaine)
+
+**Configuration MFA** :
+
+1. Portail Azure AD > Security > MFA
+2. Activation pour tous les utilisateurs (sauf comptes admin en première phase)
+3. Méthodes autorisées : Microsoft Authenticator (prioritaire), SMS (backup)
+
+**Conditional Access Policies** :
+
+Politique 1 : MFA requis pour tous
+```
+Utilisateurs : Tous
+Applications cloud : Toutes
+Conditions : Aucune
+Contrôles : Exiger MFA
+```
+
+Politique 2 : Bloquer accès depuis pays à risque
+```
+Utilisateurs : Tous
+Applications cloud : Toutes
+Conditions : Localisation NOT IN (France, Belgique, Suisse)
+Contrôles : Bloquer l'accès
+```
+
+Politique 3 : Accès conditionnel depuis appareils non gérés
+```
+Utilisateurs : Tous
+Applications cloud : Exchange Online, SharePoint Online
+Conditions : Device state = Non conforme
+Contrôles : Exiger application approuvée (Outlook mobile, OneDrive mobile)
+```
+
+**Communication aux utilisateurs** :
+
+Email envoyé 1 semaine avant :
+```
+Objet : Activation de la double authentification (MFA)
+
+Chers collègues,
+
+À partir du [DATE], la double authentification (MFA) sera activée
+sur tous les comptes Microsoft 365 pour renforcer la sécurité.
+
+Que devez-vous faire ?
+1. Installer l'application Microsoft Authenticator sur votre smartphone
+2. Scanner le QR code lors de votre prochaine connexion à Office 365
+3. Valider avec votre smartphone à chaque connexion
+
+Tutoriel vidéo : [lien intranet]
+Support IT disponible : extension 150
+
+Merci,
+L'équipe IT
+```
+
+### Phase 5 : Migration des applications vers SSO (2 semaines)
+
+**Applications à migrer** :
+1. ERP interne (supporte SAML)
+2. Salesforce (OAuth/SAML)
+3. Autres apps SaaS (Slack, Trello)
+
+**Configuration SSO pour ERP** :
+
+1. Azure AD > Enterprise Applications > New Application > Create your own application
+2. Nom : "ERP Entreprise"
+3. SAML-based Sign-on
+4. Configurer :
+   - Identifier (Entity ID) : https://erp.entreprise.com
+   - Reply URL : https://erp.entreprise.com/sso/acs
+   - Sign-on URL : https://erp.entreprise.com
+5. Télécharger le certificat Azure AD
+6. Configurer l'ERP avec le certificat et l'URL SSO
+7. Tester avec un compte pilote
+
+**Utilisation de l'IA pour troubleshooting** :
+
+Problème rencontré : SAML assertion error lors du test.
+
+**Prompt** :
+
+```
+Erreur SAML lors de la configuration SSO entre Azure AD et une application ERP.
+
+Erreur :
+"SAML assertion is invalid. The attribute NameID is missing."
+
+Configuration Azure AD :
+- User Identifier : user.userprincipalname
+- NameID Format : Persistent
+
+Que doit-je corriger ?
+```
+
+**Réponse de l'IA** :
+
+L'ERP attend probablement un format différent. Essayer :
+- NameID Format : EmailAddress
+- User Identifier : user.mail
+
+**Solution appliquée** : Changement vers EmailAddress → SSO fonctionnel ✓
+
+### Phase 6 : Formation utilisateurs et cut-over (2 semaines)
+
+**Formation organisée** :
+
+- 6 sessions de 1h (groupes de 30 personnes)
+- Thèmes : MFA, OneDrive, Teams, nouvelles procédures
+- Support vidéo enregistré et disponible sur l'intranet
+
+**Cut-over (passage en production)** :
+
+**Vendredi soir** (J-Day) :
+1. Communication : "Migration finale ce weekend"
+2. Dernière synchronisation complète Azure AD Connect
+3. Désactivation des services on-premise (file server en lecture seule)
+4. Redirection DNS (SRV-FILES → SharePoint)
+
+**Lundi matin** (J+1) :
+1. Monitoring intensif (tickets helpdesk)
+2. Équipe IT en renfort
+3. Hotline dédiée
+
+**Problèmes rencontrés** :
+- 15% des utilisateurs avaient oublié leur mot de passe temporaire → Réinitialisation self-service activée
+- 5% avaient des problèmes avec Microsoft Authenticator → Guidage par téléphone
+
+### Phase 7 : Décommissionnement de l'AD on-premise (1 mois post-migration)
+
+Après 1 mois de fonctionnement stable :
+
+1. Arrêt d'Azure AD Connect (sync plus nécessaire)
+2. Arrêt des contrôleurs de domaine on-premise
+3. Migration finale des dernières données (archives)
+4. Désinstallation des serveurs
+
+## Résultats obtenus
+
+### Techniques
+
+- **180 utilisateurs migrés** avec succès
+- **Taux de disponibilité** : 99,5% pendant la migration
+- **Temps d'interruption** : 4h (weekend, impact minimal)
+- **MFA activé** pour 100% des utilisateurs
+- **SSO configuré** sur 8 applications
+
+### Business
+
+- **Réduction des coûts** : -35% sur l'infrastructure IT (économie de 18 000€/an)
+  - Arrêt des serveurs on-premise : -8 000€/an (électricité, maintenance)
+  - Suppression licences Windows Server : -5 000€/an
+  - Réduction temps de gestion : -5 000€/an
+- **Amélioration sécurité** : 0 tentatives d'intrusion réussies depuis MFA
+- **Satisfaction utilisateurs** : 85% (enquête post-migration)
+- **Productivité** : +20% pour les télétravailleurs (accès OneDrive rapide)
+
+### Difficultés surmontées
+
+1. **Résistance au changement** : 20% des utilisateurs réticents au MFA → Formation individuelle
+2. **Applications legacy** : 2 applications ne supportaient pas SAML → Gardées en authentification locale (en attente de remplacement)
+3. **Bande passante** : Upload 2 TB vers SharePoint a saturé la connexion → Migration nocturne sur 2 semaines
+
+## Apport de l'IA dans le projet
+
+### Planification (gain 40%)
+
+- Génération du planning de migration
+- Identification des risques automatisée
+- Recommandations de best practices Azure AD
+
+### Scripts et automatisation (gain 60%)
+
+- Génération scripts PowerShell (audit, migration, monitoring)
+- Troubleshooting rapide des erreurs SAML/OAuth
+- Documentation automatique des configurations
+
+### Communication (gain 50%)
+
+- Rédaction des emails de communication aux utilisateurs
+- Création de FAQ à partir des questions courantes
+- Génération de tutoriels structurés
+
+**Temps total économisé grâce à l'IA** : ~40 heures sur le projet (équivalent 1 semaine de travail)
+
+## Outils utilisés
+
+### Microsoft
+
+- Azure AD Connect
+- Azure AD Portal
+- SharePoint Migration Tool (SPMT)
+- Microsoft Intune
+- PowerShell (Azure AD Module)
+
+### Tiers
+
+- Trivy (scan sécurité)
+- Confluence (documentation)
+- Slack (communication équipe)
+
+### IA
+
+- ChatGPT (génération scripts, troubleshooting, documentation)
+- Claude (analyse de logs, recommandations)
+
+## Compétences démontrées
+
+### Techniques
+
+- Architecture Azure AD / Microsoft 365
+- Scripting PowerShell avancé
+- Gestion de projet de migration complexe
+- Sécurité cloud (MFA, Conditional Access)
+- Intégration SSO (SAML, OAuth)
+
+### Gestion de projet
+
+- Planification de migration avec phases
+- Gestion des risques et mitigation
+- Communication avec les parties prenantes
+- Formation et accompagnement utilisateurs
+
+### Soft skills
+
+- Pédagogie (formation utilisateurs)
+- Gestion du stress (cut-over en production)
+- Résolution de problèmes sous pression
+- Travail en équipe
+
+## Leçons apprises
+
+1. **Communication intensive** : Communiquer tôt et souvent aux utilisateurs réduit les résistances
+2. **Pilote essentiel** : Tester sur un groupe pilote de 10 utilisateurs a permis d'identifier 80% des problèmes avant le cut-over
+3. **Formation continue** : Prévoir du support post-migration pendant au moins 1 mois
+4. **Hybride temporaire** : Garder un mode hybride (AD + Azure AD) pendant 1-2 mois rassure et permet le rollback si nécessaire
+5. **IA = accélérateur** : L'IA a économisé 1 semaine de travail, mais nécessite validation et adaptation des sorties
+
+## Ce que cela démontre à un recruteur
+
+**Compétences cloud** : Maîtrise complète de Microsoft 365 et Azure AD (Entra ID)
+
+**Gestion de projet** : Capacité à mener un projet de migration complexe de A à Z
+
+**Approche moderne** : Utilisation d'outils IA pour accélérer sans sacrifier la qualité
+
+**Orientation business** : Compréhension des enjeux business (réduction coûts, productivité)
+
+**Résilience** : Capacité à gérer les imprévus et à trouver des solutions rapidement
+
+**ROI tangible** : Économie de 18 000€/an + amélioration sécurité + satisfaction utilisateurs
+
+---
+
+**Message au recruteur** : Ce projet démontre une capacité complète à gérer une migration cloud stratégique, en alliant compétences techniques pointues (Azure AD, PowerShell, SSO), gestion de projet rigoureuse et utilisation intelligente de l'IA pour optimiser les délais. Le résultat : une migration réussie avec ROI mesurable et amélioration significative de la sécurité et de la productivité de l'entreprise.

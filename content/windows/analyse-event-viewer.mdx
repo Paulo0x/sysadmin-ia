@@ -1,0 +1,585 @@
+# Analyse des journaux Event Viewer avec IA
+
+## Objectif
+
+Analyser efficacement les journaux Windows Event Viewer pour identifier rapidement les erreurs critiques, comprendre leurs causes et appliquer des solutions, en s'appuyant sur l'IA pour interpréter des logs volumineux et complexes.
+
+## Contexte entreprise
+
+Un administrateur Windows Server gère une infrastructure de 15 serveurs (contrôleurs de domaine, serveurs fichiers, serveurs applicatifs, SQL Server). Quotidiennement, des centaines d'événements sont générés dans les journaux système et application.
+
+Problèmes courants :
+- Erreurs critiques noyées dans des milliers d'événements informatifs
+- Messages d'erreur cryptiques difficiles à interpréter
+- Temps perdu à chercher sur Google chaque Event ID
+- Difficulté à corréler des événements liés entre eux
+- Répétition d'erreurs non détectées
+
+L'objectif est d'identifier rapidement les problèmes et d'agir avant qu'ils n'impactent les utilisateurs.
+
+## Problème
+
+Analyser manuellement Event Viewer implique :
+- Ouvrir eventvwr.msc sur chaque serveur
+- Filtrer par niveau (Erreur, Avertissement)
+- Lire chaque événement un par un
+- Rechercher l'Event ID sur Google
+- Parcourir forums et documentation Microsoft
+- Tester différentes solutions
+
+**Temps estimé** : 30-60 minutes pour diagnostiquer une seule erreur complexe
+
+**Difficultés** :
+- Volume écrasant d'événements
+- Messages techniques peu clairs
+- Corrélation difficile entre événements
+- Solutions obsolètes trouvées en ligne
+
+## Solution traditionnelle
+
+### Méthode classique
+
+1. Ouvrir Event Viewer (eventvwr.msc)
+2. Naviguer vers Journaux Windows > Système ou Application
+3. Clic droit > Filtrer le journal actuel > Niveau : Erreur
+4. Noter l'Event ID et la source
+5. Copier le message d'erreur
+6. Rechercher "Event ID XXXX Windows Server 2019" sur Google
+7. Parcourir les résultats (TechNet, Stack Overflow)
+8. Tester la solution proposée
+9. Vérifier si l'erreur réapparaît
+
+### Limites
+
+- Processus lent et répétitif
+- Beaucoup de bruit dans les résultats de recherche
+- Solutions parfois pour d'autres versions de Windows
+- Pas de vision d'ensemble des problèmes
+
+## Apport de l'IA
+
+L'IA permet de :
+- Analyser des centaines de logs en quelques secondes
+- Identifier les patterns d'erreurs récurrentes
+- Expliquer en langage clair des Event ID cryptiques
+- Proposer des solutions classées par pertinence
+- Générer des scripts de correction automatisés
+- Corréler des événements liés entre eux
+
+**Temps avec IA** : 5-15 minutes (extraction + analyse + solution)
+
+**Gain de productivité** : 70-80%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Extraction des logs pertinents
+
+Utiliser PowerShell pour extraire les erreurs récentes :
+
+```powershell
+# Extraire les erreurs des dernières 24h
+Get-WinEvent -FilterHashtable @{
+    LogName = 'System'
+    Level = 2  # Erreur
+    StartTime = (Get-Date).AddDays(-1)
+} | Select-Object TimeCreated, Id, ProviderName, Message |
+  Export-Csv "C:\Logs\System_Errors_24h.csv" -NoTypeInformation
+
+# Extraire les erreurs Application
+Get-WinEvent -FilterHashtable @{
+    LogName = 'Application'
+    Level = 2
+    StartTime = (Get-Date).AddDays(-1)
+} | Select-Object TimeCreated, Id, ProviderName, Message |
+  Export-Csv "C:\Logs\Application_Errors_24h.csv" -NoTypeInformation
+```
+
+### Étape 2 : Identifier les erreurs critiques
+
+Ouvrir les CSV et repérer les Event ID récurrents ou critiques.
+
+**Exemple de résultat** :
+```
+TimeCreated          Id    ProviderName                  Message
+-----------          --    ------------                  -------
+2024-02-11 14:23:15  7001  Service Control Manager       Le service MSSQLSERVER n'a pas pu démarrer...
+2024-02-11 14:25:42  7001  Service Control Manager       Le service MSSQLSERVER n'a pas pu démarrer...
+2024-02-11 14:30:18  7001  Service Control Manager       Le service MSSQLSERVER n'a pas pu démarrer...
+2024-02-11 15:12:05  1530  User Profile Service          Windows a détecté un profil temporaire...
+```
+
+**Observation** : Event ID 7001 apparaît 3 fois → problème récurrent avec SQL Server
+
+### Étape 3 : Solliciter l'IA pour analyser l'erreur
+
+**Prompt structuré** :
+
+```
+Analyse cette erreur Windows Event Viewer et propose une solution.
+
+**Environnement :**
+- Windows Server 2019 Standard
+- SQL Server 2019
+- Serveur : SRV-SQL-01
+
+**Erreur :**
+Event ID : 7001
+Source : Service Control Manager
+Niveau : Erreur
+Message complet :
+"Le service MSSQLSERVER n'a pas pu démarrer en raison de l'erreur suivante :
+Le service n'a pas répondu à la demande de démarrage ou de contrôle en temps opportun."
+
+**Contexte :**
+- L'erreur apparaît 3 fois en 1 heure
+- Le service redémarre manuellement sans problème
+- Le serveur a été patché hier soir (KB5034441)
+- Aucun autre service affecté
+
+**Questions :**
+1. Quelle est la cause probable de cette erreur ?
+2. Pourquoi l'erreur est-elle récurrente ?
+3. Quelle procédure de diagnostic recommandes-tu ?
+4. Quelle solution appliquer en priorité ?
+```
+
+### Étape 4 : Analyser la réponse de l'IA
+
+**Exemple de réponse attendue** :
+
+```
+## Analyse de l'Event ID 7001 - Service MSSQLSERVER
+
+### Explication de l'erreur
+
+L'Event ID 7001 indique que le Service Control Manager (SCM) a tenté de démarrer
+le service MSSQLSERVER mais celui-ci n'a pas répondu dans le délai imparti
+(par défaut : 30 secondes). Le SCM a donc considéré que le démarrage avait échoué.
+
+### Causes probables (classées par fréquence)
+
+1. **Temps de démarrage trop long (cause la plus fréquente)**
+   - Base de données volumineuse nécessitant un temps de recovery important
+   - Vérifications d'intégrité automatiques longues
+   - Ressources insuffisantes (RAM, CPU, disque lent)
+
+2. **Impact du patch KB5034441**
+   - Ce patch récent peut avoir modifié des paramètres de sécurité ou de service
+   - Conflit avec des paramètres SQL Server existants
+
+3. **Problème de permissions**
+   - Le compte de service SQL Server a perdu des permissions
+   - Accès refusé aux fichiers de base de données
+
+4. **Dépendances de service**
+   - Un service requis (réseau, stockage) met du temps à démarrer
+
+### Procédure de diagnostic
+
+#### 1. Vérifier le temps réel de démarrage SQL
+
+Consulter le SQL Server Error Log :
+C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Log\ERRORLOG
+
+Rechercher les lignes :
+- "Server is listening on..." (indique que SQL est opérationnel)
+- Calculer le delta entre le démarrage et cette ligne
+
+Si > 30 secondes : c'est la cause.
+
+#### 2. Vérifier les Event Logs SQL Server
+
+Event Viewer > Applications and Services Logs > Microsoft > SQL Server > MSSQLSERVER
+
+Rechercher des erreurs de permissions, de fichiers ou de configuration.
+
+#### 3. Vérifier les permissions du compte de service
+
+```powershell
+# Vérifier le compte de service SQL
+Get-Service MSSQLSERVER | Select-Object Name, Status, StartType, ServiceAccount
+```
+
+#### 4. Tester le démarrage manuel chronométré
+
+```powershell
+Measure-Command {
+    Start-Service MSSQLSERVER
+}
+```
+
+Si le temps est > 30 secondes, c'est confirmé.
+
+### Solutions recommandées (par ordre de priorité)
+
+#### Solution 1 : Augmenter le timeout du service (Quick fix)
+
+**Pourquoi :** Permet à SQL Server de démarrer même si cela prend > 30 secondes.
+
+**Comment :**
+
+1. Ouvrir Regedit
+2. Naviguer vers :
+   `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control`
+3. Créer ou modifier la valeur DWORD :
+   - Nom : ServicesPipeTimeout
+   - Valeur : 60000 (60 secondes) ou 120000 (2 minutes)
+4. Redémarrer le serveur
+
+⚠️ **Attention :** Ceci masque le symptôme mais ne résout pas la cause racine.
+
+#### Solution 2 : Optimiser le démarrage SQL Server (Recommandé)
+
+**Pourquoi :** Résout la cause racine (démarrage trop lent).
+
+**Comment :**
+
+1. **Désactiver le recovery automatique des bases non critiques au démarrage**
+
+```sql
+-- Pour chaque base de données non critique
+USE master;
+GO
+ALTER DATABASE [NomBaseDonnees] SET AUTO_CLOSE OFF;
+ALTER DATABASE [NomBaseDonnees] SET AUTO_SHRINK OFF;
+GO
+```
+
+2. **Vérifier l'intégrité des bases de données**
+
+```sql
+DBCC CHECKDB ('master');
+DBCC CHECKDB ('msdb');
+DBCC CHECKDB ('model');
+-- Puis vos bases utilisateurs
+```
+
+Si des corruptions sont détectées, les réparer.
+
+3. **Augmenter les ressources serveur si sous-dimensionné**
+   - Vérifier la RAM disponible : SQL Server recommande 8 GB minimum en production
+   - Vérifier les performances disque : utiliser des SSD si possible
+
+#### Solution 3 : Vérifier l'impact du patch KB5034441
+
+**Pourquoi :** Le timing (erreur après le patch) suggère un lien.
+
+**Comment :**
+
+1. Consulter les notes de version du patch :
+   https://support.microsoft.com/en-us/topic/february-13-2024-kb5034441
+
+2. Vérifier si des problèmes connus sont signalés avec SQL Server
+
+3. Si confirmé : envisager le rollback du patch (en test d'abord)
+
+```powershell
+# Lister les patchs récents
+Get-HotFix | Where-Object {$_.InstalledOn -gt (Get-Date).AddDays(-7)} |
+  Sort-Object InstalledOn -Descending
+```
+
+#### Solution 4 : Configurer un démarrage automatique retardé (Workaround)
+
+**Pourquoi :** Laisse le temps au système de démarrer complètement.
+
+**Comment :**
+
+```powershell
+# Configurer un démarrage automatique (différé)
+Set-Service -Name MSSQLSERVER -StartupType Automatic
+sc.exe config MSSQLSERVER start= delayed-auto
+```
+
+### Vérification de la résolution
+
+Après application de la solution :
+
+1. Redémarrer le serveur
+2. Vérifier dans Event Viewer que l'erreur 7001 n'apparaît plus
+3. Vérifier que SQL Server démarre correctement :
+
+```powershell
+Get-Service MSSQLSERVER | Select-Object Status, StartType
+# Doit afficher : Status = Running, StartType = Automatic
+```
+
+4. Monitorer pendant 24-48h pour confirmer
+
+### Script de monitoring automatisé
+
+```powershell
+# Script à exécuter quotidiennement (Task Scheduler)
+$errors = Get-WinEvent -FilterHashtable @{
+    LogName = 'System'
+    Id = 7001
+    StartTime = (Get-Date).AddHours(-24)
+} -ErrorAction SilentlyContinue
+
+if ($errors) {
+    Send-MailMessage -To "admin@entreprise.com" `
+        -From "monitoring@entreprise.com" `
+        -Subject "ALERTE : Event ID 7001 détecté sur $env:COMPUTERNAME" `
+        -Body "Le service MSSQLSERVER a rencontré des problèmes de démarrage."
+}
+```
+```
+
+### Étape 5 : Appliquer la solution recommandée
+
+Suivre les étapes proposées par l'IA, en commençant par la solution la plus pertinente.
+
+**Important** : Toujours tester sur un environnement de dev/test avant la production si possible.
+
+### Étape 6 : Documenter la résolution
+
+Une fois le problème résolu, documenter :
+
+```markdown
+## Event ID 7001 - Service MSSQLSERVER timeout
+
+**Date** : 2024-02-11
+**Serveur** : SRV-SQL-01
+**Symptôme** : Service SQL Server n'a pas répondu au démarrage (3 occurrences en 1h)
+
+**Cause racine** : Temps de démarrage SQL > 30 secondes (timeout par défaut du SCM)
+
+**Solution appliquée** :
+- Augmentation du timeout ServicesPipeTimeout à 60000 ms
+- Optimisation du démarrage SQL (désactivation AUTO_CLOSE sur bases non critiques)
+
+**Validation** : Aucune erreur depuis 48h. Monitoring en place.
+
+**Responsable** : [Nom]
+```
+
+## Scripts / Commandes / Configurations
+
+### Script d'extraction complète des erreurs
+
+```powershell
+<#
+.SYNOPSIS
+    Extraction et analyse des erreurs Event Viewer
+.DESCRIPTION
+    Extrait les erreurs System et Application des dernières 24h-7j
+    Génère un rapport consolidé
+.PARAMETER Days
+    Nombre de jours à analyser (défaut : 1)
+.EXAMPLE
+    .\Extract-EventErrors.ps1 -Days 7
+#>
+
+[CmdletBinding()]
+param(
+    [int]$Days = 1,
+    [string]$OutputPath = "C:\Logs\EventAnalysis_$(Get-Date -Format 'yyyyMMdd')"
+)
+
+New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+
+Write-Host "[INFO] Extraction des erreurs des derniers $Days jours..." -ForegroundColor Cyan
+
+$startDate = (Get-Date).AddDays(-$Days)
+
+# Erreurs Système
+Write-Host "[1/3] Journaux Système..." -ForegroundColor Yellow
+$systemErrors = Get-WinEvent -FilterHashtable @{
+    LogName = 'System'
+    Level = 2
+    StartTime = $startDate
+} -ErrorAction SilentlyContinue |
+    Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, Message
+
+$systemErrors | Export-Csv "$OutputPath\System_Errors.csv" -NoTypeInformation
+
+# Erreurs Application
+Write-Host "[2/3] Journaux Application..." -ForegroundColor Yellow
+$appErrors = Get-WinEvent -FilterHashtable @{
+    LogName = 'Application'
+    Level = 2
+    StartTime = $startDate
+} -ErrorAction SilentlyContinue |
+    Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, Message
+
+$appErrors | Export-Csv "$OutputPath\Application_Errors.csv" -NoTypeInformation
+
+# Analyse des Event ID les plus fréquents
+Write-Host "[3/3] Analyse des événements récurrents..." -ForegroundColor Yellow
+
+$allErrors = $systemErrors + $appErrors
+$frequentEvents = $allErrors |
+    Group-Object -Property Id |
+    Select-Object Name, Count, @{Name="FirstOccurrence";Expression={($_.Group | Sort-Object TimeCreated)[0].TimeCreated}} |
+    Sort-Object Count -Descending
+
+# Rapport de synthèse
+$summary = @"
+==============================================
+RAPPORT D'ANALYSE EVENT VIEWER
+Date : $(Get-Date -Format "yyyy-MM-dd HH:mm")
+Serveur : $env:COMPUTERNAME
+Période : $Days jour(s)
+==============================================
+
+STATISTIQUES
+------------
+Total erreurs Système : $($systemErrors.Count)
+Total erreurs Application : $($appErrors.Count)
+Total erreurs : $($allErrors.Count)
+
+TOP 10 DES EVENT ID LES PLUS FRÉQUENTS
+---------------------------------------
+$($frequentEvents | Select-Object -First 10 | Format-Table -AutoSize | Out-String)
+
+RECOMMANDATION
+--------------
+Prioriser l'analyse des Event ID avec Count élevé (récurrents).
+Utiliser l'IA pour analyser chaque Event ID critique.
+
+Fichiers générés :
+- System_Errors.csv
+- Application_Errors.csv
+"@
+
+$summary | Out-File "$OutputPath\00_SUMMARY.txt" -Encoding UTF8
+Write-Host $summary -ForegroundColor Green
+
+Write-Host "`n[OK] Analyse terminée : $OutputPath" -ForegroundColor Green
+```
+
+### Script de monitoring temps réel
+
+```powershell
+<#
+.SYNOPSIS
+    Monitoring temps réel des erreurs Event Viewer
+.DESCRIPTION
+    Surveille les erreurs en temps réel et affiche les alertes
+.EXAMPLE
+    .\Monitor-EventErrors.ps1
+#>
+
+Write-Host "=== Monitoring Event Viewer en temps réel ===" -ForegroundColor Cyan
+Write-Host "Appuyez sur Ctrl+C pour arrêter`n" -ForegroundColor Yellow
+
+$lastCheck = Get-Date
+
+while ($true) {
+    $now = Get-Date
+    $newErrors = Get-WinEvent -FilterHashtable @{
+        LogName = 'System', 'Application'
+        Level = 2
+        StartTime = $lastCheck
+    } -ErrorAction SilentlyContinue
+
+    foreach ($error in $newErrors) {
+        Write-Host "[$($error.TimeCreated)] " -NoNewline -ForegroundColor Red
+        Write-Host "Event ID $($error.Id) - $($error.ProviderName)" -ForegroundColor Yellow
+        Write-Host "  Message : $($error.Message.Substring(0, [Math]::Min(100, $error.Message.Length)))..." -ForegroundColor Gray
+        Write-Host ""
+    }
+
+    $lastCheck = $now
+    Start-Sleep -Seconds 10
+}
+```
+
+### Template de prompt pour analyse rapide
+
+```
+Analyse cette erreur Windows et propose une solution rapide.
+
+**Serveur :** [Nom et version Windows]
+**Event ID :** [Numéro]
+**Source :** [Provider Name]
+**Message :**
+[Copier-coller le message complet]
+
+**Contexte :**
+- [Actions récentes sur le serveur]
+- [Symptômes observés]
+
+Fournis :
+1. Explication simple de l'erreur (2-3 lignes)
+2. Cause probable
+3. Solution rapide (commande ou action immédiate)
+4. Solution durable (si différent)
+```
+
+## Risques et limites
+
+### Risques de diagnostic erroné
+
+**L'IA peut proposer des solutions génériques** qui ne correspondent pas au contexte spécifique. Toujours valider avec les logs complets.
+
+**Corrélation manquante** : L'IA analyse ce qu'on lui fournit. Si plusieurs événements sont liés, il faut les fournir ensemble.
+
+### Limites de l'IA
+
+**Pas d'accès direct aux serveurs** : L'IA ne peut pas consulter directement les Event Logs. Elle dépend des extractions fournies.
+
+**Événements spécifiques à l'application** : Pour des applications métier propriétaires, l'IA peut manquer de contexte.
+
+### Risques opérationnels
+
+**Solutions destructives** : Certaines solutions (modifications registre, suppressions de fichiers) peuvent être risquées. Toujours sauvegarder.
+
+**Faux sentiment de sécurité** : Corriger une erreur visible peut masquer un problème plus profond. Toujours investiguer la cause racine.
+
+## Bonnes pratiques
+
+### Avant l'analyse
+
+1. Extraire les logs sur une période significative (24h-7j selon le problème)
+2. Identifier les Event ID récurrents (prioriser ceux-ci)
+3. Collecter le contexte (changements récents, patchs, modifications)
+
+### Pendant l'analyse
+
+1. Fournir le contexte complet à l'IA (environnement, timeline, symptômes)
+2. Analyser les Event ID par ordre de fréquence et criticité
+3. Corréler les événements proches dans le temps
+4. Valider les solutions proposées avec la documentation officielle
+
+### Après résolution
+
+1. Documenter la cause et la solution appliquée
+2. Mettre en place un monitoring pour détecter les récidives
+3. Partager la connaissance avec l'équipe (base de connaissances)
+4. Planifier des actions préventives si nécessaire
+
+### Automatisation
+
+1. Planifier des extractions régulières des erreurs (tâche planifiée quotidienne)
+2. Mettre en place des alertes sur les Event ID critiques
+3. Archiver les logs pour analyse historique
+4. Créer des dashboards de monitoring (PRTG, Zabbix, etc.)
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise de Windows Event Viewer et PowerShell
+- Capacité à extraire et analyser des logs système
+- Connaissance des Event ID courants et de leur signification
+
+### Méthodologie de diagnostic
+
+- Approche structurée : extraction → analyse → solution → validation
+- Utilisation d'outils modernes (IA) pour accélérer le diagnostic
+- Documentation systématique des résolutions
+
+### Proactivité
+
+- Mise en place de monitoring pour détecter les problèmes avant impact utilisateurs
+- Automatisation des tâches répétitives (extraction, alertes)
+- Partage des connaissances avec l'équipe
+
+### Efficacité
+
+- Réduction du temps de diagnostic de 70-80%
+- Résolution rapide avant escalade des incidents
+- Capacité à gérer plusieurs serveurs efficacement
+
+**Message au recruteur** : Ce guide montre un administrateur capable de diagnostiquer rapidement des problèmes Windows en exploitant les Event Logs et l'IA. Il ne se contente pas de corriger les symptômes, mais identifie les causes racines et met en place des solutions durables, tout en documentant et en automatisant pour améliorer l'efficacité opérationnelle.

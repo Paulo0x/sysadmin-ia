@@ -1,0 +1,655 @@
+# Diagnostic VLAN avec assistance IA
+
+## Objectif
+
+Diagnostiquer efficacement des problèmes de connectivité liés aux VLANs en exploitant l'IA pour analyser les configurations, identifier les erreurs courantes et proposer des solutions concrètes.
+
+## Contexte entreprise
+
+Une PME de 120 employés dispose d'une infrastructure réseau segmentée en VLANs :
+- VLAN 10 : Administration (20 postes)
+- VLAN 20 : Production (60 postes)
+- VLAN 30 : Invités/WiFi (40 postes)
+- VLAN 99 : Serveurs (10 serveurs)
+
+Infrastructure :
+- 2 switchs Cisco Catalyst 2960 (core)
+- 4 switchs HP ProCurve 2530 (accès)
+- Routeur pfSense (inter-VLAN routing)
+
+**Problème signalé** : Des utilisateurs du VLAN 20 ne peuvent plus accéder aux serveurs du VLAN 99 depuis ce matin. D'autres utilisateurs du même VLAN n'ont pas de problème.
+
+## Problème
+
+Diagnostiquer un problème VLAN implique :
+- Identifier le périmètre (un utilisateur, plusieurs, un VLAN entier)
+- Vérifier la configuration des switchs concernés
+- Contrôler le trunking entre switchs
+- Vérifier le routage inter-VLAN
+- Tester la connectivité à différents niveaux (L2, L3)
+- Analyser les logs des équipements
+
+**Temps estimé** : 30 minutes à 2 heures selon la complexité
+
+**Difficultés** :
+- Configurations réparties sur plusieurs équipements
+- Syntaxes différentes selon les marques (Cisco, HP)
+- Erreurs de configuration difficiles à repérer (native VLAN, allowed VLANs)
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+1. Se connecter à chaque switch via CLI (SSH ou console)
+2. Vérifier la configuration VLAN port par port
+3. Contrôler les trunk links
+4. Vérifier le routage inter-VLAN sur le routeur/firewall
+5. Tester la connectivité depuis un poste affecté
+6. Analyser les logs
+7. Corriger la configuration identifiée comme problématique
+
+### Commandes typiques
+
+**Cisco :**
+```
+show vlan brief
+show interfaces trunk
+show interfaces switchport
+show running-config
+```
+
+**HP ProCurve :**
+```
+show vlans
+show interfaces brief
+show trunks
+```
+
+### Limites
+
+- Processus long et fastidieux
+- Risque d'oubli d'éléments à vérifier
+- Difficulté à corréler des informations sur plusieurs équipements
+- Configurations complexes difficiles à interpréter
+
+## Apport de l'IA
+
+L'IA permet de :
+- Analyser rapidement des configurations switch exportées
+- Identifier des erreurs typiques (native VLAN mismatch, VLAN non autorisé sur trunk)
+- Expliquer les causes probables d'un problème de connectivité
+- Proposer une séquence de diagnostic optimisée
+- Générer des commandes de correction adaptées à chaque marque
+
+**Temps avec IA** : 10-30 minutes (collecte + analyse + correction)
+
+**Gain de productivité** : 60-70%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Collecter les informations du problème
+
+**Questions à poser aux utilisateurs** :
+- Qui est affecté ? (noms de postes, emplacements)
+- Depuis quand ? (heure précise, changement récent ?)
+- Quel type de problème ? (pas de connexion du tout, lent, intermittent)
+- Quelle destination ne fonctionne pas ? (serveurs, Internet, autres VLANs)
+
+**Exemple** :
+```
+Utilisateurs affectés : Bureau 2, postes PC-PROD-05 à PC-PROD-10 (6 postes)
+Début du problème : Ce matin 09h00 (après installation d'un nouveau switch HP)
+Symptôme : Impossible de pinger les serveurs du VLAN 99 (192.168.99.0/24)
+Les autres utilisateurs du VLAN 20 n'ont pas de problème
+Accès Internet fonctionne
+```
+
+### Étape 2 : Collecter les configurations réseau
+
+#### Sur les switchs Cisco
+
+```bash
+# Se connecter au switch
+ssh admin@192.168.1.251
+
+# Extraire les configs pertinentes
+show vlan brief
+show interfaces trunk
+show interfaces status
+show running-config
+
+# Copier-coller les résultats dans un fichier texte
+```
+
+#### Sur les switchs HP
+
+```bash
+ssh admin@192.168.1.252
+
+show vlans
+show trunks
+show interfaces brief
+```
+
+#### Sur le routeur pfSense
+
+- Interface web : Diagnostics > States
+- Vérifier les règles de firewall inter-VLAN
+- Vérifier la configuration des interfaces VLANs
+
+### Étape 3 : Tester la connectivité depuis un poste affecté
+
+```cmd
+# Sur PC-PROD-05 (Windows)
+ipconfig /all
+# Noter : Adresse IP, masque, passerelle, VLAN
+
+ping 192.168.99.10
+# Serveur du VLAN 99 - Échoue
+
+ping 192.168.20.1
+# Passerelle du VLAN 20 - Fonctionne ?
+
+tracert 192.168.99.10
+# Observer où la connexion échoue
+```
+
+### Étape 4 : Solliciter l'IA pour l'analyse
+
+**Prompt structuré** :
+
+```
+Tu es un expert en réseaux Cisco et HP. Analyse ce problème de connectivité VLAN.
+
+**Contexte :**
+- Infrastructure : 2 switchs Cisco Catalyst 2960 + 4 switchs HP ProCurve 2530
+- Routage inter-VLAN : pfSense
+- VLANs : 10 (Admin), 20 (Production), 30 (Invités), 99 (Serveurs)
+
+**Problème :**
+- 6 postes du VLAN 20 (Bureau 2, ports switch HP nouvellement installé) ne peuvent pas pinger les serveurs du VLAN 99
+- Les autres postes du VLAN 20 (autres switchs) fonctionnent correctement
+- Accès Internet fonctionne pour les postes affectés
+- Le problème est apparu ce matin après installation d'un nouveau switch HP
+
+**Tests effectués :**
+- Ping vers passerelle VLAN 20 (192.168.20.1) : OK
+- Ping vers serveur VLAN 99 (192.168.99.10) : ÉCHEC
+- Tracert vers 192.168.99.10 : S'arrête à la passerelle 192.168.20.1
+
+**Configuration switch HP (nouveau) :**
+```
+show vlans
+
+Status and Counters - VLAN Information
+
+VLAN ID Name                             | Status
+------- -------------------------------- + ------
+1       DEFAULT_VLAN                     | Port-based
+20      Production                       | Port-based
+99      Serveurs                         | Port-based
+
+show trunks
+
+Port  | Name                             Trunk
+----- + -------------------------------- -----
+23    | Uplink_Cisco                     Trk1
+
+Trk1  Type   | VLAN
+----- +------ + ----
+23    LACP   | 1,20
+```
+
+**Configuration switch Cisco (core) :**
+```
+show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------
+1    default                          active
+10   Admin                            active
+20   Production                       active    Gi0/5, Gi0/6
+30   Invites                          active
+99   Serveurs                         active    Gi0/10-12
+
+show interfaces trunk
+
+Port        Mode         Encapsulation  Status        Native vlan
+Gi0/23      on           802.1q         trunking      1
+
+Port        Vlans allowed on trunk
+Gi0/23      1,10,20,30,99
+
+Port        Vlans allowed and active in management domain
+Gi0/23      1,10,20,30,99
+```
+
+**Questions :**
+1. Quelle est la cause du problème ?
+2. Pourquoi certains postes du VLAN 20 fonctionnent et d'autres non ?
+3. Quelle configuration doit être corrigée ?
+4. Quelles commandes utiliser pour corriger (Cisco et HP) ?
+```
+
+### Étape 5 : Analyser la réponse de l'IA
+
+**Exemple de réponse attendue** :
+
+```
+## Diagnostic du problème VLAN
+
+### Cause identifiée : VLAN 99 non autorisé sur le trunk HP
+
+**Explication :**
+
+Le nouveau switch HP ProCurve a un trunk (port 23) vers le switch Cisco core,
+mais ce trunk n'autorise que les VLANs 1 et 20 :
+
+```
+Trk1  Type   | VLAN
+----- +------ + ----
+23    LACP   | 1,20
+```
+
+**Le VLAN 99 (Serveurs) n'est pas dans la liste des VLANs autorisés.**
+
+Résultat :
+- Les postes du VLAN 20 sur le switch HP peuvent communiquer entre eux et avec leur passerelle (192.168.20.1)
+- Mais le trafic vers le VLAN 99 ne peut pas traverser le trunk, car le VLAN 99 n'y est pas autorisé
+- Les autres postes du VLAN 20 (sur d'autres switchs) fonctionnent car leurs switchs ont le VLAN 99 autorisé
+
+### Pourquoi certains postes du VLAN 20 fonctionnent ?
+
+Les postes connectés directement au switch Cisco ou à d'autres switchs HP correctement configurés peuvent accéder au VLAN 99, car leurs trunks incluent le VLAN 99.
+
+Seuls les 6 postes du Bureau 2 (nouveau switch HP) sont affectés, car c'est ce switch qui a une configuration de trunk incomplète.
+
+### Solution : Ajouter le VLAN 99 au trunk HP
+
+**Sur le switch HP ProCurve :**
+
+1. Se connecter au switch :
+```bash
+ssh admin@192.168.1.252
+```
+
+2. Entrer en mode configuration :
+```
+configure terminal
+```
+
+3. Ajouter le VLAN 99 au trunk :
+```
+vlan 99
+   name Serveurs
+   tagged trk1
+   exit
+```
+
+4. Vérifier la configuration :
+```
+show trunks
+```
+
+Le résultat doit maintenant afficher :
+```
+Trk1  Type   | VLAN
+----- +------ + ----
+23    LACP   | 1,20,99
+```
+
+5. Sauvegarder la configuration :
+```
+write memory
+```
+
+6. Tester depuis un poste affecté :
+```cmd
+ping 192.168.99.10
+```
+
+### Vérifications supplémentaires
+
+#### 1. Vérifier que le VLAN 99 existe sur le switch HP
+
+```
+show vlan 99
+```
+
+Si le VLAN n'existe pas, le créer :
+```
+vlan 99
+   name Serveurs
+   tagged trk1
+   exit
+```
+
+#### 2. Vérifier le native VLAN sur les deux côtés du trunk
+
+**Cisco :**
+```
+show interfaces gi0/23 switchport | grep Native
+```
+
+**HP :**
+```
+show trunks
+```
+
+Vérifier que le native VLAN est le même des deux côtés (généralement VLAN 1).
+Un mismatch de native VLAN peut causer des problèmes intermittents.
+
+#### 3. Vérifier les règles firewall inter-VLAN sur pfSense
+
+Si le problème persiste après correction du trunk :
+- Se connecter à pfSense
+- Aller dans Firewall > Rules > VLAN20_Interface
+- Vérifier qu'une règle autorise le trafic vers le réseau 192.168.99.0/24
+
+### Commandes de diagnostic complètes
+
+**Sur switch HP (vérification post-correction) :**
+```
+show vlans
+show trunks
+show interfaces brief
+show logging -r  # Voir les logs récents
+```
+
+**Sur switch Cisco :**
+```
+show vlan brief
+show interfaces trunk
+show interfaces gi0/23 switchport
+show logging | include Gi0/23
+```
+
+**Depuis un poste Windows affecté :**
+```cmd
+ipconfig /all
+ping 192.168.20.1    # Passerelle VLAN 20
+ping 192.168.99.10   # Serveur VLAN 99
+tracert 192.168.99.10
+```
+
+### Prévention future
+
+**Checklist lors de l'ajout d'un nouveau switch :**
+
+1. Créer tous les VLANs nécessaires sur le switch
+2. Configurer le trunk avec TOUS les VLANs requis (pas uniquement ceux locaux)
+3. Vérifier le native VLAN (doit matcher le switch core)
+4. Tester la connectivité vers tous les VLANs depuis un poste de test
+5. Documenter la configuration
+
+**Template de configuration trunk HP :**
+```
+vlan 10
+   name Admin
+   tagged trkX
+vlan 20
+   name Production
+   tagged trkX
+vlan 30
+   name Invites
+   tagged trkX
+vlan 99
+   name Serveurs
+   tagged trkX
+```
+
+### Documentation de l'incident
+
+```markdown
+## Incident : Perte de connectivité VLAN 20 → VLAN 99
+
+**Date :** 2024-02-11 09h00
+**Durée :** 2h (09h00-11h00)
+**Impact :** 6 utilisateurs Bureau 2
+
+**Cause racine :** Configuration incomplète du trunk sur le nouveau switch HP
+- VLAN 99 non inclus dans la liste des VLANs autorisés sur le trunk
+
+**Solution appliquée :**
+- Ajout du VLAN 99 au trunk : `vlan 99 tagged trk1`
+- Test et validation
+
+**Prévention :**
+- Checklist de déploiement switch mise à jour
+- Vérification systématique de tous les VLANs sur les trunks
+
+**Responsable :** [Nom technicien réseau]
+```
+```
+
+### Étape 6 : Appliquer la correction
+
+Suivre les commandes proposées par l'IA :
+
+1. Se connecter au switch HP
+2. Ajouter le VLAN 99 au trunk
+3. Sauvegarder la configuration
+4. Tester depuis un poste affecté
+
+### Étape 7 : Valider la résolution
+
+```cmd
+# Depuis PC-PROD-05
+ping 192.168.99.10 -t
+# Doit répondre maintenant
+
+tracert 192.168.99.10
+# Doit passer par 192.168.20.1 puis atteindre 192.168.99.10
+```
+
+Vérifier avec les utilisateurs que tout fonctionne normalement.
+
+## Scripts / Commandes / Configurations
+
+### Script de vérification VLAN automatisé
+
+```bash
+#!/bin/bash
+#
+# Script de vérification VLAN multi-switchs
+# Vérifie la cohérence des VLANs sur tous les switchs
+
+SWITCHES=(
+    "192.168.1.251:cisco"
+    "192.168.1.252:hp"
+    "192.168.1.253:hp"
+)
+
+EXPECTED_VLANS="10 20 30 99"
+
+for switch in "${SWITCHES[@]}"; do
+    IFS=':' read -r ip type <<< "$switch"
+
+    echo "=== Vérification $ip ($type) ==="
+
+    if [ "$type" == "cisco" ]; then
+        ssh admin@$ip "show vlan brief" > /tmp/${ip}_vlans.txt
+    elif [ "$type" == "hp" ]; then
+        ssh admin@$ip "show vlans" > /tmp/${ip}_vlans.txt
+    fi
+
+    # Analyser et afficher les VLANs détectés
+    echo "VLANs détectés sur $ip :"
+    grep -E "VLAN [0-9]+" /tmp/${ip}_vlans.txt
+
+    # Vérifier les VLANs manquants
+    for vlan in $EXPECTED_VLANS; do
+        if ! grep -q "VLAN $vlan" /tmp/${ip}_vlans.txt; then
+            echo "⚠️  VLAN $vlan MANQUANT sur $ip"
+        fi
+    done
+
+    echo ""
+done
+```
+
+### Checklist de diagnostic VLAN
+
+```markdown
+## Checklist diagnostic VLAN
+
+### Niveau 1 : Identification du problème
+- [ ] Qui est affecté ? (postes, VLANs, emplacements)
+- [ ] Depuis quand ?
+- [ ] Quel symptôme exact ? (ping échoue, lent, intermittent)
+- [ ] Y a-t-il eu un changement récent ? (nouveau switch, config modifiée)
+
+### Niveau 2 : Tests de connectivité
+- [ ] Ping passerelle du VLAN local
+- [ ] Ping passerelle du VLAN distant
+- [ ] Ping serveur du VLAN distant
+- [ ] Traceroute pour identifier où le trafic s'arrête
+
+### Niveau 3 : Vérification switch local (poste affecté)
+- [ ] Port dans le bon VLAN ?
+- [ ] Port actif (up/up) ?
+- [ ] VLAN existe sur le switch ?
+
+### Niveau 4 : Vérification trunk
+- [ ] VLAN autorisé sur tous les trunks du chemin ?
+- [ ] Native VLAN cohérent des deux côtés ?
+- [ ] Trunk en état "trunking" (pas err-disabled) ?
+
+### Niveau 5 : Vérification routage inter-VLAN
+- [ ] Interface VLAN configurée sur le routeur/firewall ?
+- [ ] Règles firewall autorisant le trafic ?
+- [ ] Routage activé (ip routing) ?
+
+### Niveau 6 : Logs
+- [ ] Erreurs dans les logs switchs ?
+- [ ] Spanning-tree bloquant des ports ?
+- [ ] Messages de native VLAN mismatch ?
+```
+
+### Commandes de dépannage par marque
+
+**Cisco :**
+```
+# Vue d'ensemble
+show vlan brief
+show interfaces trunk
+show interfaces status
+
+# Détail d'un port
+show interfaces gi0/5 switchport
+show running-config interface gi0/5
+
+# Logs
+show logging | include error
+show logging | include VLAN
+
+# Spanning-tree
+show spanning-tree vlan 20
+```
+
+**HP ProCurve :**
+```
+# Vue d'ensemble
+show vlans
+show trunks
+show interfaces brief
+
+# Détail d'un port
+show interfaces 5 config
+
+# Logs
+show logging -r
+
+# LACP (si trunks LACP)
+show lacp
+```
+
+**pfSense (routage inter-VLAN) :**
+```bash
+# Via CLI ou SSH
+ifconfig  # Voir les interfaces VLAN
+route -n  # Table de routage
+
+# Via WebGUI
+Diagnostics > States  # États des connexions
+Diagnostics > Packet Capture  # Capturer le trafic
+```
+
+## Risques et limites
+
+### Risques de diagnostic erroné
+
+**Confondre symptôme et cause** : Un ping qui échoue peut avoir plusieurs causes (VLAN, routage, firewall, serveur down). Ne pas se précipiter sur la première hypothèse.
+
+**Oublier des éléments** : Un problème VLAN peut impliquer plusieurs switchs. Vérifier tout le chemin.
+
+### Limites de l'IA
+
+**Pas d'accès direct aux équipements** : L'IA ne peut pas se connecter aux switchs. Elle analyse uniquement les configurations fournies.
+
+**Configurations spécifiques** : Des topologies complexes (stacking, VSS, MLAG) peuvent nécessiter une expertise que l'IA ne couvre pas entièrement.
+
+### Risques opérationnels
+
+**Modification de trunk en production** : Ajouter/retirer des VLANs sur un trunk peut causer une brève interruption. Planifier si possible.
+
+**Erreurs de configuration** : Une mauvaise commande peut affecter plusieurs utilisateurs. Toujours vérifier avant d'appliquer.
+
+## Bonnes pratiques
+
+### Pendant le diagnostic
+
+1. Documenter chaque test effectué et son résultat
+2. Procéder de manière méthodique (couche 1 → couche 2 → couche 3)
+3. Isoler le problème (1 utilisateur, un switch, un VLAN entier ?)
+4. Sauvegarder les configurations avant toute modification
+
+### Lors de corrections
+
+1. Toujours tester en dehors des heures de pointe si possible
+2. Avoir un plan de rollback (config sauvegardée)
+3. Valider avec un test de connectivité avant de clore l'incident
+4. Documenter la cause et la solution
+
+### Prévention
+
+1. Maintenir une documentation à jour de la topologie VLAN
+2. Standardiser les configurations (templates)
+3. Auditer régulièrement les configurations trunk
+4. Former les techniciens aux diagnostics VLAN
+5. Utiliser des outils de monitoring (SNMP, syslog)
+
+### Documentation
+
+1. Maintenir un schéma réseau à jour avec les VLANs
+2. Documenter les trunks (ports, VLANs autorisés)
+3. Créer une base de connaissances des incidents résolus
+4. Versionner les configurations des switchs
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise des concepts réseau (VLANs, trunking, routage inter-VLAN)
+- Connaissance multi-constructeurs (Cisco, HP)
+- Capacité à diagnostiquer méthodiquement des problèmes réseau
+
+### Méthodologie de dépannage
+
+- Approche structurée (identification → tests → analyse → correction)
+- Utilisation de l'IA pour accélérer l'analyse sans sacrifier la rigueur
+- Documentation systématique des incidents
+
+### Efficacité opérationnelle
+
+- Réduction du temps de diagnostic (60-70%)
+- Résolution rapide pour minimiser l'impact utilisateurs
+- Capitalisation des connaissances (base de connaissances)
+
+### Communication
+
+- Capacité à expliquer un problème technique en termes simples
+- Documentation claire pour partage avec l'équipe
+- Suivi et validation avec les utilisateurs
+
+**Message au recruteur** : Ce guide démontre un technicien réseau capable de diagnostiquer rapidement des problèmes VLAN complexes en combinant une approche méthodique et l'utilisation d'outils modernes (IA). Il maîtrise plusieurs technologies (Cisco, HP) et documente rigoureusement les résolutions pour améliorer la base de connaissances de l'équipe.

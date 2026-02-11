@@ -1,0 +1,727 @@
+# Checklist sécurité cloud avec IA
+
+## Objectif
+
+Créer et appliquer une checklist complète de sécurité pour environnements cloud (AWS, Azure, GCP) en exploitant l'IA pour identifier les bonnes pratiques, générer des scripts de vérification automatisés et auditer les configurations.
+
+## Contexte entreprise
+
+Une startup tech de 40 employés utilise AWS pour son infrastructure :
+- 15 instances EC2 (production + staging)
+- 5 bases RDS (PostgreSQL, MySQL)
+- S3 buckets pour stockage (50 buckets)
+- Lambda functions (20+ fonctions)
+- CloudFront CDN
+- IAM (20 utilisateurs, 10 rôles)
+
+Aucun audit de sécurité n'a été réalisé depuis le lancement il y a 1 an. Objectif : identifier les failles avant un incident de sécurité ou une fuite de données.
+
+## Problème
+
+Un audit de sécurité cloud implique :
+- Vérifier des centaines de ressources réparties
+- Contrôler les permissions IAM (principe du moindre privilège)
+- Auditer la configuration réseau (VPC, Security Groups)
+- Vérifier le chiffrement des données (at rest, in transit)
+- Contrôler la journalisation (CloudTrail, logs)
+- Valider la conformité avec les frameworks (CIS, NIST)
+
+**Temps estimé** : 3-5 jours pour un audit manuel complet
+
+**Difficultés** :
+- Nombre élevé de ressources à auditer
+- Configuration répartie sur plusieurs services
+- Documentation des best practices volumineuse
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+1. Consulter la console AWS service par service
+2. Vérifier manuellement chaque ressource
+3. Noter les non-conformités dans un tableur
+4. Rechercher les best practices AWS Well-Architected
+5. Proposer des corrections
+
+**Outils natifs** :
+- AWS Security Hub (partiellement automatisé)
+- AWS Config Rules
+- Trusted Advisor
+
+### Limites
+
+- Processus long et fastidieux
+- Risque d'oubli d'éléments critiques
+- Pas de vision consolidée
+- Documentation manuelle fastidieuse
+
+## Apport de l'IA
+
+L'IA permet de :
+- Générer une checklist complète basée sur les frameworks de sécurité
+- Créer des scripts d'audit automatisés (AWS CLI, Terraform)
+- Analyser les résultats d'audit et prioriser les risques
+- Proposer des scripts de correction (Terraform, CloudFormation)
+- Documenter automatiquement les non-conformités
+- Expliquer les risques en termes business
+
+**Temps avec IA** : 1-2 jours (génération checklist + scripts + audit + corrections)
+
+**Gain de productivité** : 60-70%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Génération de la checklist avec l'IA
+
+**Prompt** :
+
+```
+Génère une checklist de sécurité complète pour AWS basée sur le
+framework CIS AWS Foundations Benchmark.
+
+Catégories à couvrir :
+1. IAM (Identity and Access Management)
+2. Logging et monitoring (CloudTrail, CloudWatch)
+3. Réseau (VPC, Security Groups, NACLs)
+4. Compute (EC2, Lambda)
+5. Storage (S3, EBS, RDS)
+6. Chiffrement (at rest, in transit)
+7. Backup et disaster recovery
+8. Compliance et gouvernance
+
+Pour chaque point :
+- Référence CIS
+- Description du contrôle
+- Niveau de criticité (Critique, Élevé, Moyen)
+- Commande AWS CLI pour vérifier
+- Action corrective recommandée
+
+Format : Markdown, structuré par catégorie
+```
+
+### Checklist générée (extrait)
+
+```markdown
+# Checklist sécurité AWS - CIS Benchmark
+
+## 1. IAM (Identity and Access Management)
+
+### 1.1 Désactiver le compte root (CRITIQUE)
+**Référence** : CIS 1.1
+**Description** : Le compte root AWS ne doit jamais être utilisé pour les opérations quotidiennes.
+**Vérification** :
+```bash
+aws iam get-account-summary --query 'SummaryMap.AccountAccessKeysPresent'
+# Doit retourner : 0
+```
+**Correction** : Désactiver ou supprimer les access keys du compte root.
+
+### 1.2 Activer MFA sur le compte root (CRITIQUE)
+**Référence** : CIS 1.2
+**Description** : Le compte root doit avoir une authentification multifactorielle activée.
+**Vérification** :
+```bash
+aws iam get-account-summary --query 'SummaryMap.AccountMFAEnabled'
+# Doit retourner : 1
+```
+**Correction** : Activer MFA virtuel ou matériel sur le compte root.
+
+### 1.3 Rotation des access keys (ÉLEVÉ)
+**Référence** : CIS 1.3
+**Description** : Les access keys IAM doivent être rotées tous les 90 jours maximum.
+**Vérification** :
+```bash
+aws iam list-access-keys --user-name <username> --query 'AccessKeyMetadata[?CreateDate<=`2023-11-01`]'
+```
+**Correction** : Créer de nouvelles clés, tester, supprimer les anciennes.
+
+### 1.4 Principe du moindre privilège (CRITIQUE)
+**Référence** : CIS 1.16
+**Description** : Les politiques IAM ne doivent pas accorder des permissions wildcard (*:*).
+**Vérification** :
+```bash
+aws iam list-policies --scope Local --query 'Policies[*].Arn' | xargs -I {} aws iam get-policy-version --policy-arn {} --version-id $(aws iam get-policy --policy-arn {} --query 'Policy.DefaultVersionId' --output text) --query 'PolicyVersion.Document' | jq '.Statement[] | select(.Action=="*" and .Resource=="*")'
+```
+**Correction** : Restreindre les permissions au strict minimum nécessaire.
+
+## 2. Logging et Monitoring
+
+### 2.1 CloudTrail activé sur toutes les régions (CRITIQUE)
+**Référence** : CIS 2.1
+**Description** : CloudTrail doit être activé dans toutes les régions pour tracer toutes les API calls.
+**Vérification** :
+```bash
+aws cloudtrail describe-trails --query 'trailList[?IsMultiRegionTrail==`false`]'
+# Doit retourner : []
+```
+**Correction** :
+```bash
+aws cloudtrail create-trail --name all-regions-trail --s3-bucket-name my-cloudtrail-logs --is-multi-region-trail
+aws cloudtrail start-logging --name all-regions-trail
+```
+
+### 2.2 Log file validation activée (ÉLEVÉ)
+**Référence** : CIS 2.2
+**Description** : La validation de l'intégrité des logs CloudTrail doit être activée.
+**Vérification** :
+```bash
+aws cloudtrail describe-trails --query 'trailList[?LogFileValidationEnabled==`false`]'
+```
+**Correction** :
+```bash
+aws cloudtrail update-trail --name <trail-name> --enable-log-file-validation
+```
+
+### 2.3 Alertes sur activités suspectes (ÉLEVÉ)
+**Référence** : CIS 3.1-3.14
+**Description** : CloudWatch Alarms configurées pour détecter les activités suspectes.
+**Vérifications** :
+- Connexions root
+- Modifications IAM policy
+- Modifications CloudTrail
+- Échecs d'authentification répétés
+- Modifications Security Groups
+
+## 3. Réseau (VPC, Security Groups)
+
+### 3.1 VPC Flow Logs activés (ÉLEVÉ)
+**Référence** : CIS 2.9
+**Description** : Les VPC Flow Logs permettent d'auditer le trafic réseau.
+**Vérification** :
+```bash
+aws ec2 describe-flow-logs --query 'FlowLogs[?ResourceId==`vpc-xxxxx`]'
+```
+**Correction** :
+```bash
+aws ec2 create-flow-logs --resource-type VPC --resource-ids vpc-xxxxx --traffic-type ALL --log-destination-type cloud-watch-logs --log-group-name /aws/vpc/flowlogs
+```
+
+### 3.2 Pas de Security Group avec 0.0.0.0/0 sur ports critiques (CRITIQUE)
+**Référence** : CIS 4.1, 4.2
+**Description** : Les ports SSH (22), RDP (3389), bases de données ne doivent pas être ouverts à Internet.
+**Vérification** :
+```bash
+aws ec2 describe-security-groups --query 'SecurityGroups[*].{GroupId:GroupId,Ingress:IpPermissions[?contains(IpRanges[*].CidrIp, `0.0.0.0/0`) && (FromPort<=`22` && ToPort>=`22`)]}' --output json | jq '.[] | select(.Ingress != null)'
+```
+**Correction** : Restreindre les Security Groups aux IPs spécifiques ou utiliser un bastion host.
+
+### 3.3 Security Groups par défaut restrictifs (MOYEN)
+**Référence** : CIS 4.3
+**Description** : Les Security Groups par défaut ne doivent autoriser aucun trafic.
+**Vérification** :
+```bash
+aws ec2 describe-security-groups --group-names default --query 'SecurityGroups[*].{GroupId:GroupId,Ingress:IpPermissions}'
+```
+**Correction** : Supprimer toutes les règles Ingress et Egress des SG par défaut.
+
+## 4. Storage (S3, EBS, RDS)
+
+### 4.1 S3 Buckets non publics (CRITIQUE)
+**Référence** : CIS 2.3
+**Description** : Les buckets S3 ne doivent pas être accessibles publiquement sauf si explicitement requis.
+**Vérification** :
+```bash
+aws s3api list-buckets --query 'Buckets[*].Name' | xargs -I {} aws s3api get-bucket-acl --bucket {} --query 'Grants[?Grantee.URI==`http://acs.amazonaws.com/groups/global/AllUsers`]'
+```
+**Correction** :
+```bash
+aws s3api put-public-access-block --bucket <bucket-name> --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+```
+
+### 4.2 Chiffrement S3 activé (ÉLEVÉ)
+**Référence** : CIS 2.1.1
+**Description** : Tous les buckets S3 doivent avoir le chiffrement par défaut activé.
+**Vérification** :
+```bash
+aws s3api get-bucket-encryption --bucket <bucket-name>
+```
+**Correction** :
+```bash
+aws s3api put-bucket-encryption --bucket <bucket-name> --server-side-encryption-configuration '{
+  "Rules": [{
+    "ApplyServerSideEncryptionByDefault": {
+      "SSEAlgorithm": "AES256"
+    }
+  }]
+}'
+```
+
+### 4.3 Chiffrement EBS activé (ÉLEVÉ)
+**Référence** : CIS 2.2.1
+**Description** : Tous les volumes EBS doivent être chiffrés.
+**Vérification** :
+```bash
+aws ec2 describe-volumes --query 'Volumes[?Encrypted==`false`].VolumeId'
+```
+**Correction** : Créer des snapshots, créer des volumes chiffrés depuis les snapshots, attacher les nouveaux volumes.
+
+### 4.4 RDS : Chiffrement at rest (ÉLEVÉ)
+**Référence** : CIS 2.3.1
+**Description** : Les bases de données RDS doivent être chiffrées.
+**Vérification** :
+```bash
+aws rds describe-db-instances --query 'DBInstances[?StorageEncrypted==`false`]'
+```
+**Correction** : Activer le chiffrement lors de la création (ne peut pas être activé sur instance existante → migration requise).
+
+### 4.5 RDS : Backup automatique activé (MOYEN)
+**Référence** : CIS 2.3.2
+**Description** : Les sauvegardes automatiques RDS doivent être configurées.
+**Vérification** :
+```bash
+aws rds describe-db-instances --query 'DBInstances[?BackupRetentionPeriod==`0`]'
+```
+**Correction** :
+```bash
+aws rds modify-db-instance --db-instance-identifier <db-id> --backup-retention-period 7 --apply-immediately
+```
+
+## 5. Compute (EC2, Lambda)
+
+### 5.1 Instances EC2 avec IMDSv2 uniquement (ÉLEVÉ)
+**Référence** : CIS 5.6
+**Description** : Forcer l'utilisation de l'IMDSv2 (metadata service v2) pour prévenir les attaques SSRF.
+**Vérification** :
+```bash
+aws ec2 describe-instances --query 'Reservations[*].Instances[?MetadataOptions.HttpTokens==`optional`]'
+```
+**Correction** :
+```bash
+aws ec2 modify-instance-metadata-options --instance-id <instance-id> --http-tokens required
+```
+
+### 5.2 Lambda : Variables d'environnement chiffrées (MOYEN)
+**Référence** : Best practice AWS
+**Description** : Les variables d'environnement Lambda contenant des secrets doivent être chiffrées avec KMS.
+**Vérification** :
+```bash
+aws lambda list-functions --query 'Functions[*].{Name:FunctionName,KMS:KMSKeyArn}' | jq '.[] | select(.KMS == null)'
+```
+**Correction** : Configurer KMS sur la fonction Lambda.
+```
+
+### Étape 2 : Générer le script d'audit automatisé
+
+**Prompt** :
+
+```
+Génère un script Bash qui audite automatiquement AWS selon la checklist CIS.
+
+Le script doit :
+1. Vérifier tous les points de la checklist
+2. Pour chaque point : Conforme / Non conforme / Avertissement
+3. Générer un rapport JSON et HTML
+4. Prioriser par criticité (Critique, Élevé, Moyen)
+5. Logger les commandes exécutées
+
+Inclure :
+- Gestion d'erreurs (try/catch)
+- Vérification des credentials AWS
+- Vérification des permissions (read-only OK)
+- Rapport lisible avec tableau
+
+Format : Script Bash complet, commenté
+```
+
+### Script d'audit généré (extrait)
+
+```bash
+#!/bin/bash
+#
+# aws-security-audit.sh
+# Audit de sécurité AWS basé sur CIS Benchmark
+# Usage: ./aws-security-audit.sh
+
+set -e
+
+OUTPUT_DIR="./audit_$(date +%Y%m%d_%H%M%S)"
+mkdir -p $OUTPUT_DIR
+
+REPORT_JSON="$OUTPUT_DIR/audit_report.json"
+REPORT_HTML="$OUTPUT_DIR/audit_report.html"
+
+echo "=== AWS Security Audit ===" | tee $OUTPUT_DIR/audit.log
+
+# Vérification des credentials
+if ! aws sts get-caller-identity &>/dev/null; then
+    echo "Erreur : AWS credentials non configurées"
+    exit 1
+fi
+
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+echo "Compte AWS : $ACCOUNT_ID" | tee -a $OUTPUT_DIR/audit.log
+
+# Initialisation du rapport JSON
+echo "{\"account\": \"$ACCOUNT_ID\", \"date\": \"$(date -Iseconds)\", \"results\": []}" > $REPORT_JSON
+
+# Fonction pour ajouter un résultat
+add_result() {
+    local category=$1
+    local check=$2
+    local status=$3  # PASS, FAIL, WARNING
+    local priority=$4  # CRITIQUE, ELEVÉ, MOYEN
+    local details=$5
+
+    jq --arg cat "$category" --arg chk "$check" --arg st "$status" --arg pri "$priority" --arg det "$details" \
+       '.results += [{category: $cat, check: $chk, status: $st, priority: $pri, details: $det}]' \
+       $REPORT_JSON > ${REPORT_JSON}.tmp && mv ${REPORT_JSON}.tmp $REPORT_JSON
+}
+
+# ==================================
+# 1. IAM
+# ==================================
+
+echo -e "\n[1/5] Audit IAM..." | tee -a $OUTPUT_DIR/audit.log
+
+# 1.1 Vérifier MFA root
+MFA_ROOT=$(aws iam get-account-summary --query 'SummaryMap.AccountMFAEnabled' --output text)
+if [ "$MFA_ROOT" == "1" ]; then
+    add_result "IAM" "MFA compte root" "PASS" "CRITIQUE" "MFA activé"
+    echo "✓ MFA root activé"
+else
+    add_result "IAM" "MFA compte root" "FAIL" "CRITIQUE" "MFA NON activé"
+    echo "✗ MFA root NON activé" | tee -a $OUTPUT_DIR/audit.log
+fi
+
+# 1.2 Access keys root
+ROOT_KEYS=$(aws iam get-account-summary --query 'SummaryMap.AccountAccessKeysPresent' --output text)
+if [ "$ROOT_KEYS" == "0" ]; then
+    add_result "IAM" "Access keys root" "PASS" "CRITIQUE" "Aucune access key root"
+    echo "✓ Pas d'access keys root"
+else
+    add_result "IAM" "Access keys root" "FAIL" "CRITIQUE" "Access keys root présentes"
+    echo "✗ Access keys root présentes" | tee -a $OUTPUT_DIR/audit.log
+fi
+
+# 1.3 Rotation access keys (> 90 jours)
+aws iam list-users --query 'Users[*].UserName' --output text | while read user; do
+    aws iam list-access-keys --user-name "$user" --output json | jq -r '.AccessKeyMetadata[] | .AccessKeyId + " " + .CreateDate' | while read key_id create_date; do
+        age_days=$(( ($(date +%s) - $(date -d "$create_date" +%s)) / 86400 ))
+        if [ $age_days -gt 90 ]; then
+            add_result "IAM" "Rotation access keys - $user" "FAIL" "ÉLEVÉ" "Clé $key_id créée il y a $age_days jours"
+            echo "✗ Access key ancienne pour $user : $age_days jours" | tee -a $OUTPUT_DIR/audit.log
+        fi
+    done
+done
+
+# ==================================
+# 2. S3
+# ==================================
+
+echo -e "\n[2/5] Audit S3..." | tee -a $OUTPUT_DIR/audit.log
+
+aws s3api list-buckets --query 'Buckets[*].Name' --output text | while read bucket; do
+    # Vérifier si bucket public
+    PUBLIC_ACL=$(aws s3api get-bucket-acl --bucket "$bucket" 2>/dev/null | jq -r '.Grants[] | select(.Grantee.URI == "http://acs.amazonaws.com/groups/global/AllUsers") | .Permission' || echo "")
+
+    if [ -n "$PUBLIC_ACL" ]; then
+        add_result "S3" "Bucket public - $bucket" "FAIL" "CRITIQUE" "Bucket accessible publiquement"
+        echo "✗ Bucket $bucket est PUBLIC" | tee -a $OUTPUT_DIR/audit.log
+    else
+        add_result "S3" "Bucket public - $bucket" "PASS" "CRITIQUE" "Bucket non public"
+        echo "✓ Bucket $bucket n'est pas public"
+    fi
+
+    # Vérifier chiffrement
+    ENCRYPTION=$(aws s3api get-bucket-encryption --bucket "$bucket" 2>/dev/null || echo "NOT_CONFIGURED")
+    if [ "$ENCRYPTION" == "NOT_CONFIGURED" ]; then
+        add_result "S3" "Chiffrement - $bucket" "FAIL" "ÉLEVÉ" "Chiffrement non configuré"
+        echo "✗ Chiffrement non activé sur $bucket" | tee -a $OUTPUT_DIR/audit.log
+    else
+        add_result "S3" "Chiffrement - $bucket" "PASS" "ÉLEVÉ" "Chiffrement activé"
+        echo "✓ Chiffrement activé sur $bucket"
+    fi
+done
+
+# ==================================
+# 3. EC2
+# ==================================
+
+echo -e "\n[3/5] Audit EC2..." | tee -a $OUTPUT_DIR/audit.log
+
+# Security Groups avec 0.0.0.0/0 sur SSH (22)
+SG_OPEN_SSH=$(aws ec2 describe-security-groups --query 'SecurityGroups[*].{GroupId:GroupId,Ingress:IpPermissions[?contains(IpRanges[*].CidrIp, `0.0.0.0/0`) && (FromPort<=`22` && ToPort>=`22`)]}' --output json | jq -r '.[] | select(.Ingress != null) | .GroupId')
+
+if [ -n "$SG_OPEN_SSH" ]; then
+    for sg in $SG_OPEN_SSH; do
+        add_result "EC2" "Security Group SSH ouvert - $sg" "FAIL" "CRITIQUE" "Port SSH ouvert à Internet"
+        echo "✗ Security Group $sg : SSH ouvert à 0.0.0.0/0" | tee -a $OUTPUT_DIR/audit.log
+    done
+else
+    add_result "EC2" "Security Groups SSH" "PASS" "CRITIQUE" "Aucun SG avec SSH ouvert"
+    echo "✓ Aucun Security Group avec SSH ouvert à Internet"
+fi
+
+# ==================================
+# 4. RDS
+# ==================================
+
+echo -e "\n[4/5] Audit RDS..." | tee -a $OUTPUT_DIR/audit.log
+
+aws rds describe-db-instances --query 'DBInstances[*].{DBInstanceIdentifier:DBInstanceIdentifier,Encrypted:StorageEncrypted,Backup:BackupRetentionPeriod}' --output json | jq -c '.[]' | while read db; do
+    db_id=$(echo $db | jq -r '.DBInstanceIdentifier')
+    encrypted=$(echo $db | jq -r '.Encrypted')
+    backup=$(echo $db | jq -r '.Backup')
+
+    if [ "$encrypted" == "false" ]; then
+        add_result "RDS" "Chiffrement - $db_id" "FAIL" "ÉLEVÉ" "Base de données non chiffrée"
+        echo "✗ RDS $db_id : NON chiffré" | tee -a $OUTPUT_DIR/audit.log
+    else
+        echo "✓ RDS $db_id : chiffré"
+    fi
+
+    if [ "$backup" == "0" ]; then
+        add_result "RDS" "Backup - $db_id" "FAIL" "MOYEN" "Backup automatique désactivé"
+        echo "✗ RDS $db_id : Backup désactivé" | tee -a $OUTPUT_DIR/audit.log
+    else
+        echo "✓ RDS $db_id : Backup activé ($backup jours)"
+    fi
+done
+
+# ==================================
+# 5. CloudTrail
+# ==================================
+
+echo -e "\n[5/5] Audit CloudTrail..." | tee -a $OUTPUT_DIR/audit.log
+
+TRAILS=$(aws cloudtrail describe-trails --query 'trailList[*].{Name:Name,MultiRegion:IsMultiRegionTrail,LogValidation:LogFileValidationEnabled}' --output json)
+
+MULTI_REGION=$(echo $TRAILS | jq -r '.[] | select(.MultiRegion == true) | .Name')
+if [ -z "$MULTI_REGION" ]; then
+    add_result "CloudTrail" "Multi-region trail" "FAIL" "CRITIQUE" "Aucun trail multi-région"
+    echo "✗ Aucun CloudTrail multi-région activé" | tee -a $OUTPUT_DIR/audit.log
+else
+    add_result "CloudTrail" "Multi-region trail" "PASS" "CRITIQUE" "Trail multi-région présent"
+    echo "✓ CloudTrail multi-région activé : $MULTI_REGION"
+fi
+
+# ==================================
+# Génération rapport HTML
+# ==================================
+
+echo -e "\n[OK] Génération du rapport HTML..." | tee -a $OUTPUT_DIR/audit.log
+
+TOTAL=$(jq '.results | length' $REPORT_JSON)
+FAIL=$(jq '[.results[] | select(.status == "FAIL")] | length' $REPORT_JSON)
+PASS=$(jq '[.results[] | select(.status == "PASS")] | length' $REPORT_JSON)
+
+cat > $REPORT_HTML <<EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AWS Security Audit Report</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        h1 { color: #232f3e; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background-color: #232f3e; color: white; padding: 10px; text-align: left; }
+        td { border: 1px solid #ddd; padding: 8px; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .FAIL { background-color: #ff4444; color: white; font-weight: bold; }
+        .PASS { background-color: #44cc44; color: white; }
+        .WARNING { background-color: #ffaa44; }
+    </style>
+</head>
+<body>
+    <h1>AWS Security Audit Report</h1>
+    <p><strong>Date:</strong> $(date)</p>
+    <p><strong>Account:</strong> $ACCOUNT_ID</p>
+
+    <h2>Résumé</h2>
+    <p>Total vérifications : $TOTAL</p>
+    <p>Conformes : $PASS</p>
+    <p>Non conformes : $FAIL</p>
+
+    <h2>Détails</h2>
+    <table>
+        <tr>
+            <th>Catégorie</th>
+            <th>Vérification</th>
+            <th>Statut</th>
+            <th>Priorité</th>
+            <th>Détails</th>
+        </tr>
+EOF
+
+jq -r '.results[] | "<tr><td>" + .category + "</td><td>" + .check + "</td><td class=\"" + .status + "\">" + .status + "</td><td>" + .priority + "</td><td>" + .details + "</td></tr>"' $REPORT_JSON >> $REPORT_HTML
+
+cat >> $REPORT_HTML <<EOF
+    </table>
+</body>
+</html>
+EOF
+
+echo "✓ Rapport HTML : $REPORT_HTML"
+echo "✓ Rapport JSON : $REPORT_JSON"
+
+# Ouvrir le rapport
+xdg-open $REPORT_HTML 2>/dev/null || open $REPORT_HTML 2>/dev/null || echo "Ouvrez manuellement : $REPORT_HTML"
+```
+
+### Étape 3 : Exécuter l'audit
+
+```bash
+chmod +x aws-security-audit.sh
+./aws-security-audit.sh
+```
+
+Le script génère un rapport HTML et JSON avec tous les points vérifiés.
+
+### Étape 4 : Analyser les résultats avec l'IA
+
+**Exemple de résultats** :
+
+```
+Total vérifications : 50
+Conformes : 30
+Non conformes : 20
+
+Non-conformités CRITIQUES :
+- 5 buckets S3 publics
+- Security Group avec SSH ouvert à 0.0.0.0/0
+- MFA root non activé
+
+Non-conformités ÉLEVÉES :
+- 10 access keys non rotées (> 90 jours)
+- 3 bases RDS non chiffrées
+- CloudTrail log validation désactivée
+
+Non-conformités MOYENNES :
+- 2 bases RDS sans backup automatique
+```
+
+**Prompt pour plan d'action** :
+
+```
+Analyse ce rapport d'audit AWS et propose un plan d'action priorisé.
+
+Résultats :
+[copier-coller les non-conformités]
+
+Questions :
+1. Dans quel ordre corriger (criticité + effort) ?
+2. Quels scripts Terraform/CLI pour corriger automatiquement ?
+3. Quels risques business si on ne corrige pas ?
+4. Quel délai raisonnable pour chaque correction ?
+```
+
+### Étape 5 : Appliquer les corrections
+
+**Exemple : Sécuriser un bucket S3 public**
+
+```bash
+# Bloquer l'accès public
+aws s3api put-public-access-block \
+  --bucket mon-bucket-public \
+  --public-access-block-configuration \
+  "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
+# Activer le chiffrement
+aws s3api put-bucket-encryption \
+  --bucket mon-bucket-public \
+  --server-side-encryption-configuration '{
+    "Rules": [{
+      "ApplyServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+      }
+    }]
+  }'
+```
+
+**Exemple : Fermer un Security Group ouvert**
+
+```bash
+# Identifier la règle à supprimer
+aws ec2 describe-security-groups --group-ids sg-xxxxx
+
+# Supprimer la règle SSH 0.0.0.0/0
+aws ec2 revoke-security-group-ingress \
+  --group-id sg-xxxxx \
+  --protocol tcp \
+  --port 22 \
+  --cidr 0.0.0.0/0
+
+# Ajouter une règle restreinte (votre IP uniquement)
+aws ec2 authorize-security-group-ingress \
+  --group-id sg-xxxxx \
+  --protocol tcp \
+  --port 22 \
+  --cidr 203.0.113.50/32
+```
+
+## Risques et limites
+
+### Risques de correction
+
+**Impact production** : Bloquer un bucket S3 public peut casser une application qui y accédait. Toujours tester d'abord.
+
+**Permissions insuffisantes** : Certaines corrections nécessitent des permissions élevées (IAM, KMS).
+
+### Limites de l'IA
+
+**Contexte spécifique** : L'IA donne des recommandations génériques. Certaines peuvent ne pas s'appliquer à votre cas.
+
+**Évolution des services** : AWS évolue constamment. Les bonnes pratiques changent.
+
+### Risques opérationnels
+
+**Coûts** : Activer le chiffrement, CloudTrail, etc. augmente les coûts AWS.
+
+**Complexité** : Certaines corrections (migration RDS chiffré) sont complexes et nécessitent downtime.
+
+## Bonnes pratiques
+
+### Avant l'audit
+
+1. Sauvegarder les configurations actuelles
+2. Prévenir les équipes si des tests peuvent impacter les services
+3. Vérifier les permissions AWS CLI (read-only suffit pour audit)
+
+### Pendant l'audit
+
+1. Exécuter l'audit en dehors des heures de production si possible
+2. Documenter immédiatement les résultats
+3. Prioriser les corrections par criticité ET effort
+
+### Après l'audit
+
+1. Planifier les corrections par phases
+2. Tester chaque correction en environnement staging
+3. Communiquer les changements aux équipes
+4. Planifier un audit de suivi dans 3 mois
+
+### Automatisation
+
+1. Planifier l'audit mensuel (Lambda + CloudWatch Events)
+2. Envoyer le rapport automatiquement par email (SES)
+3. Intégrer dans CI/CD (audit avant déploiement)
+4. Utiliser AWS Config Rules pour monitoring continu
+
+## Ce que cela démontre à un recruteur
+
+### Compétences cloud
+
+- Maîtrise de la sécurité AWS (IAM, S3, EC2, RDS)
+- Connaissance des frameworks de sécurité (CIS, NIST)
+- Scripting AWS CLI et automatisation
+
+### Approche proactive
+
+- Audit régulier pour prévenir les incidents
+- Automatisation des vérifications
+- Priorisation des risques
+
+### Utilisation stratégique de l'IA
+
+- Génération de checklist complète
+- Scripts d'audit automatisés
+- Analyse et recommandations actionnables
+
+### Rigueur professionnelle
+
+- Tests avant application en production
+- Documentation complète
+- Conformité avec les standards de l'industrie
+
+**Message au recruteur** : Ce guide démontre un ingénieur cloud capable d'auditer et de sécuriser efficacement une infrastructure AWS en exploitant l'IA pour automatiser les vérifications et accélérer l'analyse. La méthode est reproductible, scalable et conforme aux standards CIS, garantissant une infrastructure cloud robuste et sécurisée.

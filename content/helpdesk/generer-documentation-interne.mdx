@@ -1,0 +1,626 @@
+# Générer de la documentation interne avec IA
+
+## Objectif
+
+Produire rapidement de la documentation technique claire, structurée et maintenue à jour pour les équipes IT et les utilisateurs finaux, en s'appuyant sur l'IA pour accélérer la rédaction et garantir la qualité.
+
+## Contexte entreprise
+
+Dans une PME de 200 employés, l'équipe IT (4 personnes) gère une infrastructure hybride (on-premise et cloud). Au fil des années, la documentation a accumulé plusieurs problèmes :
+
+- Procédures obsolètes (référençant d'anciens systèmes)
+- Documentation éparpillée (Wiki, fichiers Word, emails)
+- Manque de documentation pour les nouveaux outils
+- Formats hétérogènes (styles différents selon les rédacteurs)
+- Difficulté à maintenir à jour avec les changements fréquents
+
+Résultat : Les nouveaux techniciens mettent 2-3 mois à être autonomes, et 30% du temps est perdu à chercher l'information ou à poser des questions aux collègues.
+
+## Problème
+
+Créer de la documentation technique demande :
+- Temps de rédaction important (2-4 heures pour un guide complet)
+- Compétences rédactionnelles pour une structure claire
+- Captures d'écran et schémas
+- Relecture et correction
+- Mise en forme uniforme
+
+**Difficultés courantes** :
+- Manque de temps pour documenter (toujours reporté)
+- Difficulté à structurer l'information
+- Écriture trop technique ou trop simpliste
+- Maintenance négligée (documents obsolètes)
+
+**Temps moyen pour un guide complet** : 3-5 heures
+
+## Solution traditionnelle
+
+### Méthode classique
+
+1. Identifier le besoin de documentation
+2. Rédiger un brouillon au format Word
+3. Faire des captures d'écran
+4. Structurer le document (titres, listes, tableaux)
+5. Relire et corriger
+6. Demander une relecture à un collègue
+7. Publier sur le Wiki ou l'intranet
+
+### Limites
+
+- Temps de rédaction élevé
+- Procrastination fréquente (jamais le temps)
+- Qualité variable selon le rédacteur
+- Maintenance difficile (documents oubliés)
+- Pas de versioning clair
+
+## Apport de l'IA
+
+L'IA permet de :
+- Générer une structure de document en quelques secondes
+- Rédiger des sections complètes à partir de notes brutes
+- Reformuler des explications techniques pour différents publics
+- Créer des tableaux et checklists structurés
+- Uniformiser le style rédactionnel
+- Traduire du jargon technique en langage clair
+
+**Temps avec IA** : 30-60 minutes (génération + validation + ajustements)
+
+**Gain de productivité** : 70-80%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Définir le type de documentation
+
+Identifier le besoin :
+- **Procédure opérationnelle** : Comment faire une tâche spécifique (ex: créer un utilisateur AD)
+- **Guide utilisateur** : Utilisation d'un outil pour les non-techniques
+- **Documentation technique** : Architecture, configurations pour l'équipe IT
+- **Runbook** : Procédure d'intervention en cas d'incident
+- **Onboarding** : Documentation pour nouveaux arrivants
+
+**Exemple** : Documenter la procédure de création d'une VM sur Hyper-V
+
+### Étape 2 : Collecter les informations brutes
+
+Rassembler :
+- Les étapes de la procédure (même en notes désordonnées)
+- Les configurations nécessaires
+- Les prérequis (permissions, outils)
+- Les captures d'écran si disponibles
+- Les pièges à éviter
+
+**Exemple de notes brutes** :
+```
+Création VM Hyper-V :
+- Ouvrir Hyper-V Manager
+- New > Virtual Machine
+- Nom de la VM : selon convention ENT-SRV-XXX
+- Génération 2 pour Windows Server 2019+
+- Mémoire : min 4 GB, 8 GB recommandé pour serveurs
+- Réseau : connecter au vSwitch-Production
+- Disque : 60 GB minimum, VHDX dynamique
+- ISO : monter depuis \\SRV-FILES\ISO\
+- Après install : installer Integration Services
+- Configurer IP statique selon plan d'adressage
+```
+
+### Étape 3 : Rédiger un prompt structuré
+
+**Template de prompt efficace** :
+
+```
+Génère une documentation technique complète pour la procédure suivante :
+
+Titre : Création d'une machine virtuelle sur Hyper-V
+
+Public cible : Techniciens IT niveau 1 et 2
+
+Objectif : Documenter la procédure de création d'une VM Windows Server
+sur notre infrastructure Hyper-V
+
+Informations brutes :
+[copier-coller vos notes]
+
+Structure attendue :
+1. Objectif et contexte
+2. Prérequis (permissions, accès, outils)
+3. Conventions de nommage
+4. Procédure étape par étape (numérotée, claire)
+5. Configurations post-installation
+6. Vérifications à effectuer
+7. Troubleshooting courant
+8. Références et contacts
+
+Ton : professionnel, pédagogique, précis
+Format : Markdown
+Inclure : avertissements de sécurité, bonnes pratiques
+```
+
+### Étape 4 : Générer le document avec l'IA
+
+Soumettre le prompt à l'IA et obtenir un document structuré.
+
+**Exemple de documentation générée** :
+
+```markdown
+# Création d'une machine virtuelle sur Hyper-V
+
+## Objectif
+
+Ce document décrit la procédure standard de création d'une machine virtuelle
+Windows Server sur l'infrastructure Hyper-V de l'entreprise.
+
+## Public cible
+
+Techniciens IT niveau 1 et 2, administrateurs systèmes.
+
+## Prérequis
+
+### Accès et permissions
+- Compte avec droits d'administration sur l'hyperviseur Hyper-V
+- Accès au serveur de fichiers \\SRV-FILES\ISO\
+- Permissions de création dans le cluster Hyper-V
+
+### Informations nécessaires
+- Nom du serveur (selon convention de nommage)
+- Rôle du serveur (définit les ressources allouées)
+- Adresse IP statique (obtenir auprès de l'équipe réseau)
+- VLAN de destination (Production, DMZ, ou Management)
+
+### Outils
+- Hyper-V Manager ou Windows Admin Center
+- Fichier ISO Windows Server (disponible sur \\SRV-FILES\ISO\)
+
+## Convention de nommage
+
+Format : **ENT-SRV-[ROLE]-[NUM]**
+
+Exemples :
+- ENT-SRV-DC-01 (Contrôleur de domaine)
+- ENT-SRV-WEB-03 (Serveur Web)
+- ENT-SRV-FILE-02 (Serveur de fichiers)
+
+## Procédure de création
+
+### 1. Ouvrir Hyper-V Manager
+
+```cmd
+virtmgmt.msc
+```
+
+Ou via Windows Admin Center : https://admin.entreprise.local
+
+### 2. Initier la création de la VM
+
+1. Clic droit sur l'hyperviseur cible > **New** > **Virtual Machine**
+2. Cliquer sur **Next** dans l'assistant
+
+### 3. Configurer le nom et l'emplacement
+
+1. **Name** : Saisir le nom selon la convention (ex: ENT-SRV-WEB-03)
+2. **Location** : Laisser l'emplacement par défaut (C:\ProgramData\Microsoft\Windows\Hyper-V\)
+   ou choisir un datastore spécifique si requis
+3. Cliquer sur **Next**
+
+### 4. Choisir la génération
+
+- Sélectionner **Generation 2** pour Windows Server 2019 ou supérieur
+- Sélectionner **Generation 1** uniquement pour les anciens OS (2012 R2 et antérieurs)
+
+⚠️ **Attention** : La génération ne peut pas être modifiée après création.
+
+Cliquer sur **Next**.
+
+### 5. Allouer la mémoire
+
+| Type de serveur        | RAM recommandée | RAM minimale |
+|------------------------|-----------------|--------------|
+| Contrôleur de domaine  | 4 GB            | 2 GB         |
+| Serveur fichiers       | 8 GB            | 4 GB         |
+| Serveur Web/App        | 8 GB            | 4 GB         |
+| Serveur BDD            | 16 GB           | 8 GB         |
+
+- Cocher **Use Dynamic Memory** (recommandé)
+- Définir la **Startup memory** selon le tableau
+- Cliquer sur **Next**
+
+### 6. Configurer le réseau
+
+1. **Connection** : Sélectionner le vSwitch approprié :
+   - **vSwitch-Production** : Serveurs internes
+   - **vSwitch-DMZ** : Serveurs exposés (Web, FTP)
+   - **vSwitch-Management** : Administration uniquement
+
+2. Cliquer sur **Next**
+
+### 7. Créer le disque virtuel
+
+1. Sélectionner **Create a virtual hard disk**
+2. **Name** : Laisser le nom par défaut (nom_VM.vhdx)
+3. **Location** : Laisser par défaut ou choisir un datastore spécifique
+4. **Size** : Définir selon le rôle :
+   - Minimum : 60 GB
+   - Serveur fichiers : 200 GB+
+   - Serveur BDD : 100-500 GB selon les besoins
+
+5. Format : VHDX (par défaut)
+6. Type : **Dynamically expanding** (recommandé pour optimiser l'espace)
+
+7. Cliquer sur **Next**
+
+### 8. Installer le système d'exploitation
+
+1. Sélectionner **Install an operating system from a bootable image file**
+2. Parcourir : **\\SRV-FILES\ISO\Windows_Server_2022_Standard.iso**
+3. Cliquer sur **Next**
+
+### 9. Finaliser la création
+
+1. Vérifier le récapitulatif
+2. Cliquer sur **Finish**
+
+La VM est maintenant créée mais pas encore démarrée.
+
+## Configuration post-création
+
+### 1. Ajuster les paramètres de la VM (optionnel)
+
+Clic droit sur la VM > **Settings** :
+
+- **Processor** : Allouer 2-4 vCPUs selon le rôle
+- **Integration Services** : Vérifier que tous sont cochés
+- **Checkpoints** : Désactiver les checkpoints automatiques (production)
+- **Automatic Start Action** : Configurer si démarrage auto requis
+
+### 2. Démarrer la VM et installer Windows
+
+1. Clic droit sur la VM > **Connect**
+2. Cliquer sur **Start**
+3. Suivre l'assistant d'installation Windows Server
+4. Choisir **Windows Server 2022 Standard (Desktop Experience)**
+5. Accepter la licence
+6. Type d'installation : **Custom**
+7. Sélectionner le disque virtuel, cliquer sur **Next**
+8. Attendre la fin de l'installation (10-15 minutes)
+
+### 3. Configuration initiale de Windows
+
+1. Définir le mot de passe administrateur (respecter la politique de sécurité)
+2. Se connecter
+3. Dans Server Manager, configurer :
+   - **Computer Name** : Renommer selon la convention (redémarrage requis)
+   - **Network** : Configurer l'IP statique selon le plan d'adressage
+   - **Windows Update** : Installer les mises à jour critiques
+   - **Time Zone** : Définir le fuseau horaire correct
+
+### 4. Installer les Integration Services
+
+Normalement installés automatiquement avec Windows Server 2019+.
+
+Vérifier :
+```powershell
+Get-VMIntegrationService -VMName "ENT-SRV-WEB-03"
+```
+
+Tous les services doivent être en état **Enabled**.
+
+### 5. Joindre le domaine Active Directory
+
+```powershell
+Add-Computer -DomainName "entreprise.local" -Credential (Get-Credential) -Restart
+```
+
+Saisir les credentials d'un compte autorisé à joindre le domaine.
+
+## Vérifications finales
+
+- [ ] La VM démarre correctement
+- [ ] Le nom respecte la convention de nommage
+- [ ] L'adresse IP est correcte et pingable depuis un autre serveur
+- [ ] La VM est jointe au domaine AD
+- [ ] Les Integration Services sont actifs
+- [ ] Windows Update a été exécuté
+- [ ] La VM est documentée dans l'inventaire (Excel ou CMDB)
+- [ ] Un snapshot initial a été créé si environnement de test
+
+## Troubleshooting courant
+
+### La VM ne démarre pas
+
+- Vérifier que le fichier ISO est accessible
+- Contrôler que Secure Boot est désactivé si OS ancien (Settings > Security)
+- Vérifier les logs Event Viewer de l'hyperviseur
+
+### Pas de connexion réseau
+
+- Vérifier que le vSwitch sélectionné est correct
+- Contrôler la configuration IP (ipconfig /all)
+- Tester la connectivité vers la passerelle (ping 192.168.1.1)
+- Vérifier les règles firewall
+
+### Performances lentes
+
+- Augmenter la RAM allouée
+- Ajouter des vCPUs
+- Vérifier la charge de l'hyperviseur (Get-Counter -Counter "\Hyper-V Hypervisor Logical Processor(_Total)\% Total Run Time")
+- Contrôler l'espace disque disponible sur l'hyperviseur
+
+## Références
+
+- Documentation Microsoft Hyper-V : https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/
+- Plan d'adressage IP : \\SRV-FILES\Documentation\Reseau\Plan_Adressage.xlsx
+- Convention de nommage : \\SRV-FILES\Documentation\Standards\Conventions_Nommage.pdf
+
+## Contacts
+
+- Support IT Niveau 2 : it-support@entreprise.local | Ext. 150
+- Administrateur Hyper-V : admin-hyperv@entreprise.local
+- Équipe Réseau (attribution IP) : reseau@entreprise.local
+
+---
+
+**Document créé le** : 2024-02-11
+**Dernière mise à jour** : 2024-02-11
+**Auteur** : Équipe IT
+**Version** : 1.0
+```
+
+### Étape 5 : Relire et ajuster
+
+Vérifier :
+- Exactitude technique (commandes, procédures)
+- Cohérence avec les standards de l'entreprise
+- Clarté des explications
+- Exhaustivité (rien d'oublié)
+
+Ajuster si nécessaire en demandant à l'IA :
+```
+Peux-tu ajouter une section sur la configuration du monitoring après installation ?
+```
+
+### Étape 6 : Ajouter des éléments visuels
+
+L'IA ne génère pas de captures d'écran. Les ajouter manuellement :
+- Capturer les écrans clés
+- Annoter avec des flèches ou surlignages
+- Insérer dans le document
+
+### Étape 7 : Publier et versionner
+
+1. Convertir le Markdown en format final (HTML, PDF, Wiki)
+2. Publier sur le système de documentation (Confluence, SharePoint, GitBook)
+3. Versionner (Git, ou système de versioning intégré)
+4. Communiquer la disponibilité à l'équipe
+
+## Scripts / Commandes / Configurations
+
+### Prompt pour générer un runbook d'incident
+
+```
+Génère un runbook d'intervention pour l'incident suivant :
+
+Titre : Panne totale du serveur de fichiers principal
+
+Contexte :
+- Serveur : SRV-FILES-01 (Windows Server 2019)
+- Rôle : Partages réseau principaux (\\SRV-FILES\Partages)
+- Impact : 150 utilisateurs ne peuvent plus accéder aux fichiers
+- Serveur de backup : SRV-FILES-02 (failover manuel)
+
+Runbook doit inclure :
+1. Symptômes et détection
+2. Impact et priorité
+3. Diagnostic rapide (étapes numérotées, max 10 min)
+4. Escalade (qui appeler, quand)
+5. Solutions de contournement immédiates
+6. Procédure de restauration
+7. Communication (qui informer, template de message)
+8. Post-incident (logs à collecter, RCA à faire)
+
+Format : Markdown, structuré, actionnable en situation de stress
+Ton : impératif, clair, sans ambiguïté
+```
+
+### Prompt pour documentation utilisateur (non-technique)
+
+```
+Génère un guide utilisateur pour l'outil suivant :
+
+Outil : VPN Cisco AnyConnect
+Public : Utilisateurs non-techniques (commerciaux, administratifs)
+Objectif : Permettre le télétravail avec accès aux ressources internes
+
+Guide doit inclure :
+1. Qu'est-ce que le VPN et pourquoi l'utiliser
+2. Prérequis (installation, credentials)
+3. Procédure de connexion (étape par étape, avec captures d'écran simulées)
+4. Déconnexion
+5. Problèmes courants et solutions simples
+6. Qui contacter en cas de problème
+
+Ton : pédagogique, rassurant, sans jargon technique
+Format : Markdown, inclure des encadrés "Attention" et "Astuce"
+```
+
+### Prompt pour mettre à jour une documentation obsolète
+
+```
+J'ai une ancienne documentation qui nécessite une mise à jour :
+
+[copier-coller l'ancienne version]
+
+Changements à intégrer :
+- L'outil a été migré de la version 2.5 à 3.0
+- L'interface a changé (nouveau dashboard)
+- La procédure d'authentification utilise maintenant Azure AD au lieu d'un login local
+- Nouvelles fonctionnalités : exports PDF, notifications email
+
+Tâche :
+1. Identifier les sections obsolètes
+2. Réécrire ces sections avec les nouvelles informations
+3. Conserver la structure globale du document
+4. Ajouter une note de version en fin de document
+
+Format : Markdown
+```
+
+### Template Markdown standardisé
+
+Utiliser ce template pour uniformiser toute la documentation :
+
+```markdown
+# [Titre de la procédure]
+
+## Objectif
+
+[Description courte]
+
+## Public cible
+
+[Qui utilise ce document]
+
+## Prérequis
+
+### Accès et permissions
+- [Liste]
+
+### Outils requis
+- [Liste]
+
+## Procédure
+
+### 1. [Première étape]
+
+[Description détaillée]
+
+```cmd
+# Commandes si applicable
+```
+
+### 2. [Deuxième étape]
+
+[...]
+
+## Vérifications
+
+- [ ] Checklist
+- [ ] Des vérifications
+- [ ] À effectuer
+
+## Troubleshooting
+
+### [Problème courant 1]
+
+**Symptôme** :
+**Cause** :
+**Solution** :
+
+## Références
+
+- [Liens utiles]
+
+## Contacts
+
+- [Qui contacter]
+
+---
+
+**Document créé le** : [Date]
+**Dernière mise à jour** : [Date]
+**Auteur** : [Nom]
+**Version** : [X.Y]
+```
+
+## Risques et limites
+
+### Risques de qualité
+
+**Documentation incomplète** : L'IA génère ce qu'on lui demande. Si le prompt manque d'informations, le document sera incomplet.
+
+**Informations erronées** : L'IA peut inventer des procédures ou commandes inexistantes. Toujours valider techniquement.
+
+### Limites de l'IA
+
+**Pas de captures d'écran** : L'IA ne peut pas générer d'images. Les ajouter manuellement.
+
+**Contexte entreprise** : L'IA ne connaît pas vos outils, conventions, procédures spécifiques. Il faut les fournir explicitement.
+
+**Documentation très technique** : Pour des sujets très pointus (configs réseau complexes, scripts avancés), l'IA peut manquer de profondeur.
+
+### Risques organisationnels
+
+**Documentation non maintenue** : Générer de la doc est rapide, mais elle doit être mise à jour régulièrement. Prévoir un processus de revue.
+
+**Prolifération documentaire** : Générer trop de documentation peut créer du bruit. Prioriser les documents essentiels.
+
+## Bonnes pratiques
+
+### Avant génération
+
+1. Définir clairement l'objectif et le public cible
+2. Collecter toutes les informations nécessaires
+3. Identifier les standards de l'entreprise à respecter
+4. Préparer les captures d'écran si nécessaire
+
+### Pendant la génération
+
+1. Structurer le prompt avec soin (objectif, public, structure attendue)
+2. Fournir le contexte spécifique à l'entreprise
+3. Demander un ton approprié (technique, pédagogique, etc.)
+4. Itérer si le résultat n'est pas satisfaisant
+
+### Après génération
+
+1. Relire entièrement le document
+2. Valider techniquement toutes les procédures
+3. Ajouter les captures d'écran et schémas
+4. Faire relire par un collègue
+5. Publier et communiquer
+
+### Maintenance
+
+1. Établir un calendrier de revue (ex: tous les 6 mois)
+2. Marquer les documents obsolètes
+3. Mettre à jour lors de changements (nouveaux outils, procédures)
+4. Versionner clairement les documents
+
+### Organisation
+
+1. Utiliser une structure de dossiers logique
+2. Nommer les fichiers de manière cohérente (Proc_Creation_VM_HyperV_v1.0.md)
+3. Centraliser la documentation (un seul emplacement)
+4. Implémenter un système de recherche efficace
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise des systèmes et procédures IT
+- Capacité à structurer l'information technique
+- Connaissance des bonnes pratiques de documentation
+
+### Compétences rédactionnelles
+
+- Clarté d'expression
+- Adaptation du ton au public cible
+- Structuration logique de l'information
+
+### Sens de l'organisation
+
+- Création de documentation standardisée
+- Mise en place de processus de maintenance
+- Capitalisation des connaissances
+
+### Productivité
+
+- Génération rapide de documentation complète (70-80% de gain de temps)
+- Maintien de la qualité malgré l'accélération
+- Capacité à documenter efficacement tout en gérant l'opérationnel
+
+### Vision stratégique
+
+- Conscience de l'importance de la documentation
+- Facilitation de l'onboarding et du partage de connaissances
+- Réduction de la dépendance aux individus (knowledge silos)
+
+**Message au recruteur** : Ce guide démontre un professionnel capable de produire rapidement de la documentation technique de qualité, structurée et maintenue. Il utilise l'IA comme accélérateur tout en garantissant l'exactitude et la pertinence du contenu. Cette compétence est essentielle pour pérenniser les connaissances IT et améliorer l'efficacité opérationnelle des équipes.

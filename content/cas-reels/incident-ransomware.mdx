@@ -1,0 +1,603 @@
+# Réponse à incident ransomware
+
+## Contexte de l'incident
+
+**Entreprise** : PME industrielle de 85 employés (fabrication de pièces mécaniques)
+
+**Date** : Lundi 6h30
+
+**Alerte initiale** : Le directeur de production appelle : "Impossible d'ouvrir les fichiers de production. Tout est bloqué."
+
+**Infrastructure** :
+- 2 serveurs Windows Server 2019 (fichiers + ERP)
+- 1 serveur Linux (site web vitrine)
+- 75 postes Windows 10
+- NAS Synology pour sauvegardes
+- Pare-feu pfSense
+
+**Mon rôle** : Administrateur système unique de l'entreprise
+
+## Découverte de l'incident (6h30 - 7h00)
+
+### 7h00 : Arrivée sur site
+
+En me connectant au serveur de fichiers (SRV-FILES-01) :
+
+**Constat initial** :
+- Bureau rempli de fichiers avec extension `.locked`
+- Fichier `README_DECRYPT.txt` sur le bureau
+- Fond d'écran changé avec message de rançon
+
+**Contenu du fichier de rançon** :
+```
+YOUR FILES HAVE BEEN ENCRYPTED
+
+All your important files have been encrypted with military-grade encryption.
+To recover your files, you must pay 5 Bitcoin (~$200,000) within 72 hours.
+
+Contact: [email darkweb]
+
+DO NOT:
+- Turn off your computers
+- Try to decrypt files yourself
+- Contact police or FBI
+
+Failure to comply will result in permanent data loss.
+```
+
+**Réaction immédiate** : Mon cœur s'accélère, mais je garde mon calme. Formation cyber-sécurité suivie 6 mois avant.
+
+### Actions des premières minutes (7h00 - 7h15)
+
+#### 1. Isolation immédiate
+
+```powershell
+# Déconnexion de tous les utilisateurs (serveur de fichiers)
+query user
+logoff [session_id] /server:SRV-FILES-01
+
+# Désactivation des cartes réseau (isoler le serveur)
+Disable-NetAdapter -Name "Ethernet" -Confirm:$false
+```
+
+**Justification** : Empêcher la propagation du ransomware vers d'autres machines.
+
+#### 2. Identification du ransomware
+
+**Utilisation de l'IA pour identification rapide** :
+
+J'ai pris une photo de la note de rançon et utilisé ChatGPT sur mon téléphone :
+
+**Prompt** :
+```
+Identifie ce ransomware d'après cette note de rançon.
+
+Extension des fichiers : .locked
+Demande : 5 Bitcoin en 72h
+Email contact : [masqué]
+
+Quel est le nom de ce ransomware ?
+Y a-t-il un décrypteur gratuit disponible ?
+```
+
+**Réponse de l'IA** :
+```
+Probablement le ransomware "LockBit" ou variante similaire.
+
+Décrypteur gratuit : Vérifier sur :
+- No More Ransom Project (nomoreransom.org)
+- Emsisoft Decryptor
+- Avast Decryptors
+
+Actions recommandées :
+1. Isoler les systèmes infectés
+2. NE PAS payer la rançon
+3. Contacter les autorités (ANSSI en France)
+4. Restaurer depuis sauvegardes si disponibles
+```
+
+#### 3. Vérification de l'étendue de l'infection
+
+**Serveurs** :
+- SRV-FILES-01 : Infecté (fichiers .locked)
+- SRV-ERP-01 : Testé → Non infecté (isolation rapide a fonctionné)
+- SRV-WEB (Linux) : Non affecté
+
+**Postes de travail** :
+- 15 postes allumés pendant le weekend → Potentiellement infectés
+- 60 postes éteints → Probablement sains
+
+**Sauvegarde NAS** :
+- Vérification sur le Synology → **INFECTÉ AUSSI** (le ransomware a chiffré les partages réseau montés)
+
+**Moment critique** : Les sauvegardes sont compromises. Sueurs froides.
+
+#### 4. Vérification des sauvegardes hors-ligne
+
+**Point positif** : Mise en place 3 mois avant d'un process de sauvegarde hebdomadaire sur disque USB externe (rotation 4 disques, stockés dans un coffre hors-ligne).
+
+```powershell
+# Dernier backup hors-ligne : Vendredi dernier (2 jours de perte de données)
+# Vérification de l'intégrité
+Test-Path "D:\Backup_2024-02-09"  # OK
+```
+
+**Soulagement** : Backup hors-ligne intact. Perte de données limitée à 2 jours.
+
+### Décisions stratégiques (7h15 - 7h30)
+
+#### Réunion de crise avec la direction
+
+**Participants** :
+- Directeur général
+- Directeur de production
+- Responsable commercial
+- Moi (IT)
+
+**Constats présentés** :
+1. Ransomware a chiffré le serveur de fichiers
+2. Sauvegardes en ligne compromises
+3. Backup hors-ligne disponible (perte 2 jours de données)
+4. Demande de rançon : 200 000€
+
+**Options discutées** :
+
+**Option A : Payer la rançon**
+- Coût : 200 000€
+- Risque : Aucune garantie de récupération
+- Éthique : Financer le crime organisé
+- Délai : Inconnu (plusieurs jours ?)
+
+**Option B : Restauration depuis backup**
+- Coût : 0€ (backup déjà fait)
+- Risque : Perte de 2 jours de données
+- Délai : 24-48h de restauration
+- Nécessite : Reconstruction complète du serveur
+
+**Décision unanime** : Option B - Ne pas payer, restaurer depuis backup.
+
+#### Notification des autorités
+
+- Appel à l'ANSSI (Agence Nationale de la Sécurité des Systèmes d'Information)
+- Dépôt de plainte à la gendarmerie
+- Déclaration CNIL (données personnelles potentiellement exfiltrées)
+
+## Plan de restauration (7h30 - 8h00)
+
+### Utilisation de l'IA pour élaborer le plan
+
+**Prompt** :
+```
+Génère un plan de restauration après attaque ransomware.
+
+Contexte :
+- Serveur de fichiers Windows Server 2019 chiffré
+- Backup hors-ligne disponible (2 jours de perte)
+- 85 utilisateurs impactés
+- Besoin de restauration urgente (production arrêtée)
+
+Le plan doit inclure :
+1. Reconstruction du serveur (OS frais)
+2. Restauration des données
+3. Vérification de l'intégrité
+4. Sécurisation renforcée
+5. Tests avant remise en production
+6. Communication utilisateurs
+
+Priorités :
+- Production (fichiers techniques)
+- Commercial (devis, contrats)
+- Administration
+
+Format : Checklist détaillée avec temps estimés
+```
+
+**Plan généré et adapté** :
+
+#### Phase 1 : Reconstruction serveur (4h)
+- [ ] Formater complètement SRV-FILES-01
+- [ ] Réinstaller Windows Server 2019 (ISO propre)
+- [ ] Configurer les rôles (File Services)
+- [ ] Rejoindre le domaine Active Directory
+- [ ] Appliquer tous les patchs de sécurité
+
+#### Phase 2 : Restauration données (6h)
+- [ ] Monter le disque de backup USB
+- [ ] Vérifier l'intégrité des fichiers (checksum)
+- [ ] Restaurer par ordre de priorité :
+  - Production (CAO, plans techniques) : 2h
+  - Commercial (devis, contrats) : 1h
+  - Administration (comptabilité, RH) : 1h
+  - Général (documents divers) : 2h
+
+#### Phase 3 : Sécurisation (2h)
+- [ ] Changer tous les mots de passe admin
+- [ ] Désactiver SMBv1
+- [ ] Activer le pare-feu Windows
+- [ ] Configurer des permissions NTFS strictes
+- [ ] Installer antivirus Sophos (remplacement de l'ancien)
+
+#### Phase 4 : Tests (1h)
+- [ ] Tester l'accès depuis 5 postes pilotes
+- [ ] Vérifier l'intégrité de fichiers critiques
+- [ ] Tester les permissions (lecture/écriture)
+
+#### Phase 5 : Remise en production (1h)
+- [ ] Reconnecter au réseau
+- [ ] Ouvrir l'accès aux utilisateurs par vagues
+- [ ] Monitoring intensif des logs
+
+**Temps total estimé : 14 heures → Remise en production prévue le mardi matin**
+
+## Exécution du plan (Lundi 8h - Mardi 6h)
+
+### Phase 1 : Reconstruction (8h - 12h)
+
+Formatage et réinstallation de Windows Server 2019.
+
+**Problème rencontré** : Pilote réseau manquant après installation.
+
+**Résolution avec IA** :
+
+**Prompt** :
+```
+Après réinstallation Windows Server 2019, la carte réseau n'est pas détectée.
+
+Modèle serveur : Dell PowerEdge R740
+Carte réseau : Broadcom NetXtreme
+
+Comment obtenir et installer le pilote ?
+```
+
+**Solution de l'IA** :
+```
+1. Télécharger le pilote depuis le site Dell :
+   - Support Dell > Drivers & Downloads > R740
+2. Transférer sur clé USB
+3. Installer via Device Manager
+```
+
+**Application** : Pilote installé, réseau opérationnel. ✓
+
+### Phase 2 : Restauration données (12h - 18h)
+
+Restauration progressive par priorité.
+
+**Commandes** :
+```powershell
+# Montage du backup USB
+$backupPath = "E:\Backup_2024-02-09"
+
+# Restauration priorité 1 : Production
+robocopy "$backupPath\Production" "D:\Partages\Production" /E /Z /R:3 /W:5 /LOG:restore_production.log
+
+# Vérification de l'intégrité (échantillonnage)
+Get-ChildItem "D:\Partages\Production" -Recurse | Measure-Object -Property Length -Sum
+# Comparaison avec le backup → Identique ✓
+```
+
+**Statistiques restauration** :
+- Production : 350 GB → 2h30
+- Commercial : 120 GB → 1h
+- Administration : 80 GB → 45min
+- Général : 450 GB → 3h
+
+### Phase 3 : Sécurisation renforcée (18h - 20h)
+
+#### Changement de tous les mots de passe
+
+```powershell
+# Réinitialisation du mot de passe administrateur local
+net user Administrator NouveauMotDePasseComplexe123!
+
+# Force changement de mot de passe pour tous les utilisateurs
+Get-ADUser -Filter * | Set-ADUser -ChangePasswordAtLogon $true
+```
+
+#### Désactivation de SMBv1 (vecteur d'infection courant)
+
+```powershell
+# Désactiver SMBv1
+Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+
+# Vérifier
+Get-SmbServerConfiguration | Select EnableSMB1Protocol
+```
+
+#### Configuration pare-feu Windows
+
+```powershell
+# Activer le pare-feu
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+
+# Autoriser uniquement SMB depuis le réseau local
+New-NetFirewallRule -DisplayName "SMB Inbound" -Direction Inbound -Protocol TCP -LocalPort 445 -RemoteAddress 192.168.1.0/24 -Action Allow
+```
+
+#### Installation Sophos Intercept X
+
+- Désinstallation de l'ancien antivirus (obsolète)
+- Installation de Sophos Intercept X (protection ransomware avancée)
+- Configuration scan automatique quotidien
+
+### Phase 4 : Tests (20h - 21h)
+
+**Groupe pilote** : 5 utilisateurs de différents services
+
+Tests effectués :
+- Accès aux partages : OK ✓
+- Lecture fichiers : OK ✓
+- Écriture fichiers : OK ✓
+- Ouverture fichiers CAO (Production) : OK ✓
+- Ouverture fichiers Excel/Word : OK ✓
+
+**Validation** : Aucun problème détecté.
+
+### Phase 5 : Remise en production (Mardi 6h)
+
+**Communication aux employés** (email envoyé à 5h) :
+
+```
+Objet : Restauration du serveur de fichiers - Accès rétabli
+
+Chers collègues,
+
+Suite à l'incident de sécurité de lundi, le serveur de fichiers a été
+entièrement restauré et sécurisé.
+
+ACCÈS RÉTABLI ce mardi matin 6h.
+
+IMPORTANT :
+1. Vous devrez changer votre mot de passe à la première connexion
+2. Données restaurées : Vendredi 9 février (perte de 2 jours)
+3. Si des fichiers critiques manquent, contactez l'IT (extension 150)
+
+NOUVEAU MOT DE PASSE :
+- Minimum 14 caractères
+- Majuscules, minuscules, chiffres, caractères spéciaux
+
+Merci de votre patience.
+
+L'équipe IT
+```
+
+**Reconnexion au réseau** :
+```powershell
+# Réactivation carte réseau
+Enable-NetAdapter -Name "Ethernet"
+
+# Monitoring en temps réel
+Get-SmbSession | Format-Table -AutoSize  # Voir les connexions utilisateurs
+```
+
+**Monitoring** : 75 utilisateurs connectés dans les 2 premières heures. Aucun incident signalé.
+
+## Actions post-incident (Semaine suivante)
+
+### Analyse forensique
+
+**Objectif** : Identifier le point d'entrée du ransomware.
+
+**Utilisation de l'IA pour analyse de logs** :
+
+Export des logs Event Viewer du serveur avant formatage (heureusement sauvegardés) :
+
+```powershell
+# Logs sauvegardés avant formatage
+$logs = Get-WinEvent -Path "C:\SavedLogs\Security.evtx" -MaxEvents 1000
+
+# Export pour analyse
+$logs | Export-Csv logs_analysis.csv
+```
+
+**Prompt pour analyse** :
+```
+Analyse ces logs Windows Security pour identifier le point d'entrée d'un ransomware.
+
+Événements suspects à rechercher :
+- Connexions RDP inhabituelles
+- Exécutions de scripts PowerShell
+- Créations de tâches planifiées
+- Accès à des partages réseau
+
+Logs :
+[extrait des logs les plus pertinents]
+
+Quelle est la timeline de l'infection ?
+```
+
+**Résultat de l'analyse** :
+
+**Samedi 15h23** : Connexion RDP depuis IP externe (103.x.x.x) avec compte admin faible (mot de passe compromis).
+
+**Samedi 15h35** : Exécution de script PowerShell malveillant (téléchargement du ransomware).
+
+**Samedi 16h00 - Dimanche 4h** : Chiffrement progressif des fichiers.
+
+**Cause racine identifiée** : Mot de passe admin faible (8 caractères, pas de complexité) + RDP exposé sur Internet sans restrictions.
+
+### Mesures de sécurité renforcées
+
+#### 1. Désactivation RDP depuis Internet
+
+```bash
+# Sur pfSense : Suppression de la règle autorisant RDP (3389) depuis WAN
+# RDP accessible uniquement via VPN
+```
+
+#### 2. Politique de mots de passe renforcée
+
+```powershell
+# GPO : Politique de mots de passe
+- Longueur minimale : 14 caractères
+- Complexité : Obligatoire
+- Expiration : 90 jours
+- Historique : 10 derniers mots de passe
+```
+
+#### 3. MFA sur les comptes admin
+
+- Activation de l'authentification à deux facteurs sur tous les comptes admin
+- Utilisation de Microsoft Authenticator
+
+#### 4. Segmentation réseau
+
+Création de VLANs :
+- VLAN 10 : Administration
+- VLAN 20 : Production
+- VLAN 30 : Invités/IoT
+
+Règles firewall inter-VLAN restrictives.
+
+#### 5. Sauvegardes renforcées
+
+**Nouvelle stratégie 3-2-1** :
+- **3 copies** : Production + NAS + USB externe
+- **2 supports différents** : Disque + Cloud (Azure Backup)
+- **1 copie hors-ligne** : USB externe déconnecté (rotation 4 disques)
+
+```powershell
+# Script de backup automatisé vers Azure
+$storageAccount = "backupentreprise"
+azcopy copy "D:\Partages" "https://$storageAccount.blob.core.windows.net/backups" --recursive
+```
+
+#### 6. Formation des employés
+
+- Session de sensibilisation cybersécurité (2h)
+- Simulation de phishing mensuelle
+- Création d'une procédure d'incident
+
+## Résultats et impact
+
+### Indicateurs techniques
+
+- **Temps d'arrêt total** : 24 heures (lundi 6h → mardi 6h)
+- **Données perdues** : 2 jours (récupération manuelle partielle possible)
+- **Coût financier direct** : 0€ (pas de rançon payée)
+- **Temps IT investi** : 20 heures (1 weekend + 1 nuit)
+
+### Impact business
+
+- **Production arrêtée** : 1 jour → Manque à gagner ~15 000€
+- **Réputation** : Communication transparente avec clients → Pas d'impact majeur
+- **Conformité** : Déclaration CNIL dans les délais réglementaires ✓
+
+### Investissements post-incident
+
+- Sophos Intercept X : 2 500€/an
+- Azure Backup : 500€/an
+- Formation cybersécurité : 1 500€ (une fois)
+- Audit de sécurité externe : 3 000€
+
+**Total : 7 500€** (vs 200 000€ de rançon)
+
+### Améliorations mesurables (6 mois après)
+
+- **0 incident ransomware** depuis
+- **Tentatives de phishing détectées** : 15 (utilisateurs ont signalé immédiatement)
+- **Conformité sauvegardes** : 100% (tests de restauration mensuels)
+- **Temps de restauration testé** : 12h (amélioration continue)
+
+## Apport de l'IA dans la gestion de crise
+
+### Identification rapide (gain 80%)
+
+Sans IA : 2-3h de recherche sur forums pour identifier le ransomware
+Avec IA : 10 minutes (identification + recommandations)
+
+### Plan de restauration (gain 60%)
+
+Sans IA : 2h pour élaborer un plan détaillé
+Avec IA : 30 minutes (génération + adaptation)
+
+### Troubleshooting (gain 70%)
+
+Sans IA : 1h pour trouver et installer le pilote réseau
+Avec IA : 15 minutes (recherche + solution immédiate)
+
+### Analyse forensique (gain 50%)
+
+Sans IA : 4h d'analyse manuelle des logs
+Avec IA : 2h (analyse assistée, identification des patterns)
+
+**Temps total économisé : ~8 heures** (crucial en situation de crise)
+
+## Leçons apprises
+
+### Préparation sauve des vies
+
+**Ce qui a sauvé l'entreprise** :
+- Backup hors-ligne (mis en place 3 mois avant)
+- Formation suivie 6 mois avant
+- Procédure d'incident documentée
+
+**Sans cela** : Perte totale de données ou paiement de la rançon.
+
+### Ne jamais payer la rançon
+
+- Aucune garantie de récupération
+- Finance le crime organisé
+- Marque l'entreprise comme "payeuse" (cible future)
+
+### Communication transparente
+
+- Informer immédiatement la direction (pas de dissimulation)
+- Communiquer régulièrement avec les employés (réduire l'anxiété)
+- Notifier les autorités (obligation légale + aide potentielle)
+
+### Sécurité en couches (Defense in Depth)
+
+- Une seule mesure ne suffit pas
+- Multiplier les barrières (firewall, antivirus, MFA, backups)
+- Tester régulièrement (simulations, restaurations)
+
+## Compétences démontrées
+
+### Gestion de crise
+
+- Réaction rapide et méthodique sous stress
+- Prise de décision éclairée en situation critique
+- Communication efficace avec direction et utilisateurs
+
+### Compétences techniques
+
+- Reconstruction serveur Windows
+- Restauration de données à grande échelle
+- Analyse forensique (logs, timeline d'infection)
+- Sécurisation réseau (firewall, VLANs, MFA)
+- Scripting PowerShell
+
+### Utilisation stratégique de l'IA
+
+- Identification rapide du ransomware
+- Génération de plans d'action
+- Troubleshooting accéléré
+- Analyse de logs assistée
+
+### Soft skills
+
+- Sang-froid en situation de crise
+- Pédagogie (formation utilisateurs)
+- Résilience (20h de travail continu)
+- Transparence et éthique (refus de payer)
+
+## Ce que cela démontre à un recruteur
+
+**Expérience de crise réelle** : Capacité prouvée à gérer un incident majeur de bout en bout
+
+**Compétences techniques complètes** : Windows Server, sécurité, networking, scripting
+
+**Approche moderne** : Utilisation d'IA pour accélérer la résolution (gain 8h en crise)
+
+**Sens des responsabilités** : Prise de décision éthique (refus de payer) et légale (déclarations)
+
+**Orientation business** : Compréhension de l'impact (15 000€ manque à gagner → restauration en 24h)
+
+**Amélioration continue** : Mise en place de mesures préventives (formation, MFA, backups renforcés)
+
+**ROI mesurable** : Économie de 192 500€ (200k rançon - 7,5k investissements sécurité)
+
+---
+
+**Message au recruteur** : Cet incident démontre une capacité complète à gérer une crise cybersécurité majeure, alliant compétences techniques, gestion de crise, et utilisation intelligente d'outils modernes (IA) pour accélérer la résolution. Le résultat : entreprise sauvée, données restaurées, sécurité renforcée, et 0€ de rançon payée.

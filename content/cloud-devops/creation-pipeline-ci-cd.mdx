@@ -1,0 +1,1085 @@
+# Création pipeline CI/CD avec assistance IA
+
+## Objectif
+
+Concevoir et implémenter un pipeline CI/CD complet pour automatiser les builds, tests et déploiements en exploitant l'IA pour générer des configurations optimales, détecter les erreurs et proposer des améliorations de performance et sécurité.
+
+## Contexte entreprise
+
+Une startup tech de 20 développeurs déploie manuellement une application web Node.js/React :
+- Backend Node.js + API REST
+- Frontend React
+- Base de données PostgreSQL
+- Déploiement sur AWS (EC2 + RDS)
+- 15 déploiements/mois
+
+**Problèmes actuels** :
+- Déploiements manuels (1-2h par déploiement)
+- Risque d'erreurs humaines
+- Pas de tests automatisés
+- Rollback complexe en cas de problème
+- Délai de mise en production long (validation manuelle)
+
+**Objectif** : Automatiser 100% du pipeline avec déploiements en 10-15 minutes.
+
+## Problème
+
+Créer un pipeline CI/CD from scratch implique :
+- Choisir les outils adaptés (Jenkins, GitLab CI, GitHub Actions, CircleCI)
+- Configurer runners/agents
+- Écrire les scripts de build, test, deploy
+- Gérer les secrets de façon sécurisée
+- Implémenter rollback automatique
+- Configurer monitoring et notifications
+
+**Temps estimé** : 1-2 semaines pour une pipeline complète
+
+**Difficultés** :
+- Syntaxe YAML complexe (GitHub Actions, GitLab CI)
+- Gestion des dépendances entre jobs
+- Tests d'intégration longs
+- Configuration cloud (AWS, Azure, GCP)
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+```bash
+# 1. Pull code
+git pull origin main
+
+# 2. Install dependencies
+npm install
+
+# 3. Run tests
+npm test
+
+# 4. Build
+npm run build
+
+# 5. Deploy (SCP vers serveur)
+scp -r dist/ user@server:/var/www/app
+
+# 6. Restart service
+ssh user@server "sudo systemctl restart app"
+```
+
+**Problèmes** :
+- Processus long et répétitif
+- Pas de validation automatique
+- Pas de rollback si échec
+- Dépendance à un humain
+
+## Apport de l'IA
+
+L'IA permet de :
+- Générer des configurations CI/CD complètes pour toute plateforme
+- Optimiser les jobs (parallélisation, caching)
+- Détecter erreurs de configuration avant exécution
+- Proposer des stratégies de déploiement (blue/green, canary)
+- Créer des tests automatisés
+- Générer des Dockerfiles optimisés pour la CI
+
+**Temps avec IA** : 2-3 jours pour une pipeline complète
+
+**Gain de productivité** : 80-85%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Définir l'architecture de la pipeline
+
+**Prompt** :
+
+```
+Conçois une pipeline CI/CD pour cette application.
+
+Architecture :
+- Frontend : React 18 (TypeScript, Vite)
+- Backend : Node.js 20 (Express, TypeScript)
+- Base de données : PostgreSQL 15
+- Infrastructure : AWS (EC2 pour app, RDS pour DB)
+- Repository : GitHub
+
+Workflow souhaité :
+1. Push sur branche feature → Tests unitaires
+2. Pull Request vers main → Tests unitaires + tests d'intégration + analyse qualité
+3. Merge dans main → Build + Deploy staging
+4. Tag release (v1.x.x) → Deploy production
+
+Contraintes :
+- Tests doivent s'exécuter en < 5 minutes
+- Rollback automatique si healthcheck échoue
+- Notifications Slack à chaque étape
+
+Propose l'architecture complète de la pipeline.
+
+Format : Diagramme textuel + explication de chaque étape
+```
+
+**Réponse IA** :
+
+```
+=== ARCHITECTURE CI/CD PIPELINE ===
+
+PLATEFORME RECOMMANDÉE : GitHub Actions
+Raison : Intégration native GitHub, gratuit pour projets privés (2000 min/mois)
+
+=== WORKFLOW ===
+
+┌─────────────────────────────────────────────────────────────┐
+│  PUSH BRANCH FEATURE                                        │
+└────────────┬────────────────────────────────────────────────┘
+             │
+             v
+      ┌──────────────┐
+      │   CI-TEST    │  (2-3 min)
+      │              │
+      │ • Lint       │
+      │ • Unit tests │
+      │ • Type check │
+      └──────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  PULL REQUEST → MAIN                                        │
+└────────────┬────────────────────────────────────────────────┘
+             │
+             v
+      ┌──────────────────────┐
+      │   CI-FULL            │  (4-5 min)
+      │                      │
+      │ • Lint + Tests       │
+      │ • Integration tests  │
+      │ • Code coverage      │
+      │ • SonarQube scan     │
+      │ • Security scan      │
+      └──────────────────────┘
+             │
+             v
+      ┌──────────────────────┐
+      │   BUILD              │  (2 min)
+      │                      │
+      │ • Docker build       │
+      │ • Push to ECR        │
+      └──────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  MERGE TO MAIN                                              │
+└────────────┬────────────────────────────────────────────────┘
+             │
+             v
+      ┌──────────────────────┐
+      │   DEPLOY STAGING     │  (3 min)
+      │                      │
+      │ • Deploy to ECS      │
+      │ • Run smoke tests    │
+      │ • Healthcheck        │
+      └──────────────────────┘
+             │
+             v
+      [NOTIFICATION SLACK: Staging déployé]
+
+┌─────────────────────────────────────────────────────────────┐
+│  TAG RELEASE (v1.x.x)                                       │
+└────────────┬────────────────────────────────────────────────┘
+             │
+             v
+      ┌──────────────────────┐
+      │   DEPLOY PRODUCTION  │  (5 min)
+      │                      │
+      │ • Backup DB          │
+      │ • Deploy ECS (blue)  │
+      │ • Healthcheck        │
+      │ • Switch traffic     │
+      │ • Monitor metrics    │
+      └──────┬───────────────┘
+             │
+             ├─[SUCCESS]──> [NOTIFICATION: Prod déployé v1.x.x]
+             │
+             └─[FAILURE]──> [ROLLBACK AUTOMATIQUE]
+                            [NOTIFICATION: Rollback effectué]
+
+=== JOBS DÉTAILLÉS ===
+
+Job 1: LINT_AND_TEST (parallèle frontend + backend)
+- Install dependencies (npm ci avec cache)
+- ESLint + Prettier check
+- TypeScript compilation
+- Jest unit tests
+- Couverture > 80% requis
+
+Job 2: INTEGRATION_TESTS
+- Start PostgreSQL container
+- Seed database
+- Run backend + frontend
+- Cypress E2E tests
+
+Job 3: SECURITY_SCAN
+- npm audit (vulnérabilités)
+- Trivy scan (images Docker)
+- OWASP dependency check
+
+Job 4: BUILD_DOCKER
+- Multi-stage Dockerfile
+- Push vers AWS ECR
+- Tag: sha-$GITHUB_SHA + latest
+
+Job 5: DEPLOY_STAGING
+- Update ECS task definition
+- Deploy new version
+- Wait healthcheck OK (retry 5x)
+- If fail → rollback
+
+Job 6: DEPLOY_PRODUCTION
+- Require manual approval (optionnel)
+- Blue/Green deployment ECS
+- Gradual traffic shift (10% → 50% → 100%)
+- Monitor CloudWatch alarms
+- Auto-rollback if error rate > 1%
+
+=== OPTIMISATIONS ===
+
+1. Caching :
+   - node_modules (restauré si package-lock.json identique)
+   - Docker layers (cache ECR)
+
+2. Parallélisation :
+   - Lint frontend || Lint backend
+   - Tests frontend || Tests backend
+
+3. Early fail :
+   - Lint avant tests (plus rapide)
+   - Tests unitaires avant intégration
+
+TEMPS TOTAL ESTIMÉ :
+- PR → Staging : 10 minutes
+- Tag → Production : 15 minutes
+```
+
+### Étape 2 : Génération du workflow GitHub Actions
+
+**Prompt** :
+
+```
+Génère le fichier GitHub Actions YAML complet pour l'architecture définie.
+
+Inclure :
+1. Jobs pour tests, build, deploy staging, deploy prod
+2. Caching node_modules
+3. Secrets AWS (ECR, ECS)
+4. Notifications Slack
+5. Rollback automatique si healthcheck échoue
+
+Format : Fichier .github/workflows/ci-cd.yml complet
+```
+
+**Réponse IA** :
+
+```yaml
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+env:
+  NODE_VERSION: '20'
+  AWS_REGION: 'eu-west-1'
+  ECR_REPOSITORY: 'myapp'
+  ECS_CLUSTER: 'production'
+  ECS_SERVICE_STAGING: 'myapp-staging'
+  ECS_SERVICE_PROD: 'myapp-prod'
+
+jobs:
+  # ==================== TESTS ====================
+  lint-and-test:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        workspace: [frontend, backend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.workspace }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./${{ matrix.workspace }}
+        run: npm ci
+
+      - name: Lint
+        working-directory: ./${{ matrix.workspace }}
+        run: npm run lint
+
+      - name: Type check
+        working-directory: ./${{ matrix.workspace }}
+        run: npm run type-check
+
+      - name: Unit tests
+        working-directory: ./${{ matrix.workspace }}
+        run: npm test -- --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./${{ matrix.workspace }}/coverage/coverage-final.json
+          flags: ${{ matrix.workspace }}
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name == 'pull_request'
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd frontend && npm ci
+          cd ../backend && npm ci
+
+      - name: Run database migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+        run: npm run migrate
+
+      - name: Start backend
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          PORT: 3000
+        run: npm start &
+
+      - name: Run E2E tests
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: http://localhost:3000
+        run: npm run test:e2e
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run npm audit
+        run: |
+          cd frontend && npm audit --audit-level=high
+          cd ../backend && npm audit --audit-level=high
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+
+  # ==================== BUILD ====================
+  build-and-push:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, integration-tests, security-scan]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'release'
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==================== DEPLOY STAGING ====================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging.myapp.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition myapp-staging \
+            --query taskDefinition > task-definition.json
+
+      - name: Update task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: myapp
+          image: ${{ needs.build-and-push.outputs.image-tag }}
+
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_STAGING }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Run smoke tests
+        run: |
+          sleep 30
+          curl -f https://staging.myapp.com/health || exit 1
+
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "✅ Staging deployed successfully!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment*\n✅ Success\n<https://staging.myapp.com|View Staging>"
+                  }
+                }
+              ]
+            }
+
+  # ==================== DEPLOY PRODUCTION ====================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'release'
+    environment:
+      name: production
+      url: https://myapp.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Backup database
+        run: |
+          aws rds create-db-snapshot \
+            --db-instance-identifier myapp-prod \
+            --db-snapshot-identifier myapp-backup-$(date +%Y%m%d-%H%M)
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition myapp-prod \
+            --query taskDefinition > task-definition.json
+
+      - name: Update task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: myapp
+          image: ${{ needs.build-and-push.outputs.image-tag }}
+
+      - name: Deploy to ECS (Blue/Green)
+        id: deploy
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_PROD }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+        continue-on-error: true
+
+      - name: Healthcheck
+        id: healthcheck
+        run: |
+          for i in {1..10}; do
+            if curl -f https://myapp.com/health; then
+              echo "Healthcheck passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "Healthcheck failed after 10 attempts"
+          exit 1
+        continue-on-error: true
+
+      - name: Rollback on failure
+        if: steps.deploy.outcome == 'failure' || steps.healthcheck.outcome == 'failure'
+        run: |
+          echo "Deployment failed, rolling back..."
+          PREVIOUS_TASK_DEF=$(aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE_PROD }} \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE_PROD }} \
+            --task-definition $PREVIOUS_TASK_DEF \
+            --force-new-deployment
+
+      - name: Notify Slack (Success)
+        if: steps.deploy.outcome == 'success' && steps.healthcheck.outcome == 'success'
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "🚀 Production deployed successfully!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment*\n🚀 Version ${{ github.event.release.tag_name }} deployed\n<https://myapp.com|View Production>"
+                  }
+                }
+              ]
+            }
+
+      - name: Notify Slack (Failure)
+        if: steps.deploy.outcome == 'failure' || steps.healthcheck.outcome == 'failure'
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "❌ Production deployment FAILED - Rollback initiated",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment FAILED*\n❌ Rollback initiated\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"
+                  }
+                }
+              ]
+            }
+```
+
+### Étape 3 : Dockerfile optimisé pour CI/CD
+
+**Prompt** :
+
+```
+Génère un Dockerfile multi-stage optimisé pour CI/CD.
+
+Application : Node.js 20 + React (Vite)
+Contraintes :
+- Image finale < 200 MB
+- Build rapide (caching layers)
+- Non-root user
+- Healthcheck intégré
+
+Format : Dockerfile complet
+```
+
+**Réponse IA** :
+
+```dockerfile
+# Dockerfile
+# Multi-stage build optimisé pour CI/CD
+
+# ===== Stage 1: Build Frontend =====
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /build
+
+# Copy frontend package files
+COPY frontend/package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy frontend source
+COPY frontend/ ./
+
+# Build frontend
+RUN npm run build
+
+# ===== Stage 2: Build Backend =====
+FROM node:20-alpine AS backend-build
+
+WORKDIR /build
+
+# Copy backend package files
+COPY backend/package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy backend source
+COPY backend/ ./
+
+# Build backend (TypeScript)
+RUN npm run build
+
+# ===== Stage 3: Production Image =====
+FROM node:20-alpine AS production
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+WORKDIR /app
+
+# Copy backend production dependencies
+COPY --from=backend-build /build/package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built backend
+COPY --from=backend-build --chown=nodejs:nodejs /build/dist ./dist
+
+# Copy built frontend
+COPY --from=frontend-build --chown=nodejs:nodejs /build/dist ./public
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
+CMD ["node", "dist/server.js"]
+```
+
+### Étape 4 : Scripts de rollback manuel
+
+**Action** : Créer script de rollback d'urgence
+
+```bash
+#!/bin/bash
+# rollback-production.sh
+# Rollback d'urgence vers version précédente
+
+set -euo pipefail
+
+CLUSTER="production"
+SERVICE="myapp-prod"
+REGION="eu-west-1"
+
+echo "=== ROLLBACK PRODUCTION ==="
+
+# 1. Récupérer version actuelle
+CURRENT_TASK_DEF=$(aws ecs describe-services \
+  --cluster "$CLUSTER" \
+  --services "$SERVICE" \
+  --region "$REGION" \
+  --query 'services[0].taskDefinition' \
+  --output text)
+
+echo "Version actuelle : $CURRENT_TASK_DEF"
+
+# 2. Lister les 5 dernières versions
+echo ""
+echo "Versions disponibles :"
+aws ecs list-task-definitions \
+  --family-prefix myapp-prod \
+  --region "$REGION" \
+  --sort DESC \
+  --max-items 5 \
+  --query 'taskDefinitionArns[*]' \
+  --output table
+
+# 3. Demander version de rollback
+read -p "Numéro de révision pour rollback (ex: 42) : " REVISION
+
+TARGET_TASK_DEF="myapp-prod:$REVISION"
+
+# 4. Confirmation
+read -p "Rollback vers $TARGET_TASK_DEF ? (yes/no) : " CONFIRM
+if [ "$CONFIRM" != "yes" ]; then
+    echo "Rollback annulé"
+    exit 1
+fi
+
+# 5. Backup DB avant rollback
+echo "Création backup DB..."
+aws rds create-db-snapshot \
+  --db-instance-identifier myapp-prod \
+  --db-snapshot-identifier "rollback-$(date +%Y%m%d-%H%M)" \
+  --region "$REGION"
+
+# 6. Update service
+echo "Déploiement $TARGET_TASK_DEF..."
+aws ecs update-service \
+  --cluster "$CLUSTER" \
+  --service "$SERVICE" \
+  --task-definition "$TARGET_TASK_DEF" \
+  --force-new-deployment \
+  --region "$REGION"
+
+# 7. Attendre stabilité
+echo "Attente de la stabilité du service..."
+aws ecs wait services-stable \
+  --cluster "$CLUSTER" \
+  --services "$SERVICE" \
+  --region "$REGION"
+
+echo ""
+echo "✓ Rollback terminé avec succès"
+echo "Version déployée : $TARGET_TASK_DEF"
+```
+
+### Étape 5 : Monitoring et métriques
+
+**Prompt** :
+
+```
+Génère un dashboard CloudWatch pour monitorer la pipeline CI/CD.
+
+Métriques à suivre :
+1. Temps d'exécution pipeline (par étape)
+2. Taux de succès déploiements
+3. Nombre de rollbacks
+4. Couverture de code
+5. Temps de build Docker
+
+Format : Terraform pour créer dashboard CloudWatch
+```
+
+**Réponse IA** :
+
+```hcl
+# cloudwatch-dashboard.tf
+resource "aws_cloudwatch_dashboard" "cicd_metrics" {
+  dashboard_name = "CICD-Pipeline-Metrics"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["GitHub/Actions", "WorkflowRunTime", { stat = "Average" }],
+            [".", ".", { stat = "Maximum" }]
+          ]
+          period = 300
+          stat   = "Average"
+          region = var.aws_region
+          title  = "Pipeline Execution Time"
+          yAxis = {
+            left = {
+              label = "Seconds"
+            }
+          }
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["ECS", "DeploymentSuccessRate", { stat = "Average" }]
+          ]
+          period = 3600
+          stat   = "Average"
+          region = var.aws_region
+          title  = "Deployment Success Rate"
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+              label = "Percentage"
+            }
+          }
+        }
+      },
+      {
+        type = "log"
+        properties = {
+          query = <<-EOT
+            SOURCE '/aws/ecs/myapp-prod'
+            | fields @timestamp, @message
+            | filter @message like /ROLLBACK/
+            | stats count() as RollbackCount by bin(5m)
+          EOT
+          region = var.aws_region
+          title  = "Rollback Events"
+        }
+      }
+    ]
+  })
+}
+
+# Alarmes
+resource "aws_cloudwatch_metric_alarm" "deployment_failure" {
+  alarm_name          = "cicd-deployment-failure"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "DeploymentFailure"
+  namespace           = "ECS"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "1"
+  alarm_description   = "Alerte si déploiement échoue"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+}
+```
+
+### Étape 6 : Tests de la pipeline complète
+
+**Action** : Valider tous les scénarios
+
+```bash
+# Test 1 : Push feature branch → Tests unitaires
+git checkout -b feature/test-pipeline
+git push origin feature/test-pipeline
+# Vérifier dans Actions : Job "lint-and-test" s'exécute
+
+# Test 2 : Pull Request → Tests complets
+gh pr create --title "Test pipeline" --body "Testing CI/CD"
+# Vérifier : lint-and-test, integration-tests, security-scan s'exécutent
+
+# Test 3 : Merge → Deploy staging
+gh pr merge --squash
+# Vérifier : build-and-push + deploy-staging s'exécutent
+# Vérifier staging.myapp.com accessible
+
+# Test 4 : Release → Deploy production
+gh release create v1.0.0 --title "Release 1.0.0" --notes "First release"
+# Vérifier : deploy-production s'exécute
+# Vérifier myapp.com accessible
+
+# Test 5 : Rollback manuel
+./rollback-production.sh
+# Sélectionner version précédente
+# Vérifier service revient à l'état antérieur
+```
+
+## Scripts / Commandes / Configurations
+
+### Script de validation pré-commit
+
+```bash
+#!/bin/bash
+# .git/hooks/pre-push
+# Validation avant push
+
+set -e
+
+echo "Running pre-push checks..."
+
+# Tests unitaires
+echo "[1/3] Running unit tests..."
+npm run test --workspaces
+
+# Lint
+echo "[2/3] Running linter..."
+npm run lint --workspaces
+
+# Type check
+echo "[3/3] Type checking..."
+npm run type-check --workspaces
+
+echo "✓ All checks passed, pushing..."
+```
+
+### Configuration Dependabot
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "devops-team"
+    labels:
+      - "dependencies"
+      - "frontend"
+
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "devops-team"
+    labels:
+      - "dependencies"
+      - "backend"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+```
+
+## Risques et limites
+
+### Risques de la CI/CD
+
+**Déploiement automatique défaillant** : Si tests passent mais app cassée (faux positif), déploiement en prod peut casser le service.
+
+**Secrets exposés** : Mauvaise gestion des secrets GitHub peut exposer AWS credentials. Toujours utiliser GitHub Secrets, jamais hardcoder.
+
+**Rollback qui échoue** : Si migration DB non réversible, rollback peut échouer. Toujours tester rollback en staging.
+
+### Limites de l'IA
+
+**Configuration spécifique** : L'IA génère du code générique. Adapter aux contraintes de votre infrastructure (VPC, security groups, etc.).
+
+**Versions outils** : Actions GitHub évoluent. Vérifier compatibilité des versions.
+
+**Optimisations avancées** : Stratégies de déploiement complexes (canary, feature flags) nécessitent expertise manuelle.
+
+### Risques opérationnels
+
+**Pipeline bloquée** : Si runner GitHub Actions saturé, pipeline peut être en attente. Envisager self-hosted runners.
+
+**Coûts AWS** : Déploiements fréquents augmentent coûts (ECR storage, ECS tasks). Monitorer billing.
+
+## Bonnes pratiques
+
+### Avant création pipeline
+
+1. Définir clairement les environnements (dev, staging, prod)
+2. Créer infrastructure AWS en amont (ECS, ECR, RDS)
+3. Configurer secrets GitHub (AWS credentials, Slack webhook)
+4. Définir stratégie de branches (main, feature/*, release/*)
+
+### Pendant développement
+
+1. Toujours tester localement avant push
+2. Créer des PR même pour petites modifications
+3. Attendre validation pipeline avant merge
+4. Documenter les échecs de pipeline (post-mortem)
+
+### En production
+
+1. Ne jamais skip les tests pour "gagner du temps"
+2. Toujours créer un tag Git pour releases
+3. Monitorer métriques CloudWatch après déploiement
+4. Garder un backup DB avant chaque déploiement prod
+5. Tester rollback régulièrement (drill)
+
+### Sécurité
+
+1. Activer branch protection sur main (require PR reviews)
+2. Scanner images Docker (Trivy, Snyk)
+3. Auditer dépendances npm (npm audit, Dependabot)
+4. Rotate secrets AWS régulièrement
+5. Logger tous les déploiements (audit trail)
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise CI/CD et DevOps (GitHub Actions, Docker, AWS ECS)
+- Expertise automatisation de déploiements
+- Connaissance stratégies de déploiement (blue/green, rollback)
+- Monitoring et observabilité (CloudWatch, métriques)
+
+### Efficacité
+
+- Réduction temps de déploiement de 1-2h à 10-15 min
+- Automatisation 100% du pipeline
+- Rollback automatique en cas d'échec
+- Notifications temps réel (Slack)
+
+### Utilisation stratégique de l'IA
+
+- Génération rapide de workflows GitHub Actions
+- Configuration optimisée (caching, parallélisation)
+- Dockerfiles multi-stage performants
+- Scripts de monitoring et rollback
+
+**Message au recruteur** : Ce guide démontre un ingénieur DevOps capable de concevoir et implémenter une pipeline CI/CD complète en exploitant l'IA pour accélérer le développement. La solution garantit des déploiements rapides (10-15 min), sécurisés (tests, scans), avec rollback automatique, réduisant drastiquement les risques en production et libérant les développeurs pour se concentrer sur les features.

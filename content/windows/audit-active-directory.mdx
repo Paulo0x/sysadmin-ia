@@ -1,0 +1,597 @@
+# Audit Active Directory assisté par IA
+
+## Objectif
+
+Effectuer un audit de sécurité et d'hygiène d'Active Directory en exploitant l'IA pour analyser les résultats, identifier les risques et proposer des actions correctives concrètes.
+
+## Contexte entreprise
+
+Une PME de 180 employés utilise Active Directory depuis 8 ans. Au fil du temps, l'annuaire a accumulé :
+- Comptes utilisateurs obsolètes (anciens employés non désactivés)
+- Groupes de sécurité mal gérés (membres inappropriés)
+- GPO redondantes ou obsolètes
+- Permissions excessives sur certains comptes
+- Absence de documentation sur l'organisation des OU
+
+Un audit est nécessaire pour :
+- Identifier les failles de sécurité
+- Nettoyer l'annuaire
+- Mettre en conformité avec les bonnes pratiques
+- Documenter l'état actuel
+
+## Problème
+
+Un audit AD manuel implique :
+- Extraction de données via PowerShell (comptes, groupes, GPO, permissions)
+- Analyse ligne par ligne des résultats
+- Identification manuelle des anomalies
+- Recherche des bonnes pratiques de sécurité
+- Rédaction d'un rapport d'audit
+- Proposition de plan d'action
+
+**Temps estimé** : 2-3 jours pour un audit complet sur un annuaire de taille moyenne
+
+**Difficultés** :
+- Volume de données important
+- Risque d'oubli d'éléments critiques
+- Connaissance approfondie des bonnes pratiques AD requise
+
+## Solution traditionnelle
+
+### Méthode classique
+
+1. Exécuter des scripts PowerShell pour extraire les données AD
+2. Exporter les résultats dans Excel
+3. Analyser manuellement chaque feuille
+4. Consulter des guides de sécurité Microsoft
+5. Noter les anomalies dans un document
+6. Rédiger un rapport avec recommandations
+7. Présenter à la direction IT
+
+### Outils classiques
+
+- **PowerShell AD module** : Cmdlets Get-ADUser, Get-ADGroup, Get-GPO
+- **Active Directory Users and Computers** : Interface graphique
+- **Group Policy Management Console** : Gestion des GPO
+- **Excel** : Analyse des exports
+
+### Limites
+
+- Processus long et répétitif
+- Risque d'erreur humaine dans l'analyse
+- Difficulté à prioriser les risques
+- Rapport souvent incomplet
+
+## Apport de l'IA
+
+L'IA permet de :
+- Analyser rapidement des exports AD volumineux
+- Identifier automatiquement les anomalies courantes
+- Proposer des actions correctives priorisées
+- Générer un rapport d'audit structuré
+- Expliquer les risques en termes business (impact, probabilité)
+- Suggérer des scripts de correction
+
+**Temps avec IA** : 4-6 heures (extraction + analyse assistée + validation)
+
+**Gain de productivité** : 70-75%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Extraction des données AD
+
+Utiliser PowerShell pour extraire les informations clés :
+
+```powershell
+# Comptes utilisateurs
+Get-ADUser -Filter * -Properties * |
+    Select-Object Name, SamAccountName, Enabled, LastLogonDate, PasswordLastSet, PasswordNeverExpires, MemberOf |
+    Export-Csv "C:\Audit\AD_Users.csv" -NoTypeInformation
+
+# Groupes de sécurité
+Get-ADGroup -Filter * -Properties Members, ManagedBy |
+    Export-Csv "C:\Audit\AD_Groups.csv" -NoTypeInformation
+
+# Comptes inactifs (> 90 jours)
+$inactiveDate = (Get-Date).AddDays(-90)
+Get-ADUser -Filter {LastLogonDate -lt $inactiveDate -and Enabled -eq $true} -Properties LastLogonDate |
+    Select-Object Name, SamAccountName, LastLogonDate |
+    Export-Csv "C:\Audit\AD_InactiveUsers.csv" -NoTypeInformation
+
+# Comptes avec mot de passe n'expirant jamais
+Get-ADUser -Filter {PasswordNeverExpires -eq $true -and Enabled -eq $true} -Properties PasswordNeverExpires |
+    Select-Object Name, SamAccountName, PasswordLastSet |
+    Export-Csv "C:\Audit\AD_PasswordNeverExpires.csv" -NoTypeInformation
+
+# Membres du groupe Admins du domaine
+Get-ADGroupMember -Identity "Domain Admins" -Recursive |
+    Select-Object Name, SamAccountName |
+    Export-Csv "C:\Audit\AD_DomainAdmins.csv" -NoTypeInformation
+
+# GPO listées
+Get-GPO -All |
+    Select-Object DisplayName, CreationTime, ModificationTime, GpoStatus |
+    Export-Csv "C:\Audit\AD_GPOs.csv" -NoTypeInformation
+```
+
+Après exécution, vous obtenez plusieurs fichiers CSV dans C:\Audit\
+
+### Étape 2 : Analyse préliminaire
+
+Ouvrir les CSV et identifier manuellement les grandes catégories d'anomalies :
+- Nombre de comptes inactifs
+- Nombre de comptes avec mot de passe n'expirant jamais
+- Nombre de Domain Admins (doit être minimal)
+- GPO modifiées récemment ou très anciennes
+
+### Étape 3 : Solliciter l'IA pour l'analyse
+
+**Prompt structuré** :
+
+```
+Tu es un expert en sécurité Active Directory. Analyse les données d'audit suivantes
+et identifie les risques de sécurité et les anomalies.
+
+**Contexte :**
+- Entreprise de 180 utilisateurs
+- Active Directory en production depuis 8 ans
+- Pas d'audit récent
+- Infrastructure Windows Server 2019
+
+**Données d'audit :**
+
+Comptes utilisateurs :
+- Total : 215 comptes
+- Actifs : 180
+- Désactivés : 35
+- Comptes inactifs (> 90 jours) : 22
+- Comptes avec PasswordNeverExpires : 8
+- Membres Domain Admins : 5
+
+Groupes de sécurité :
+- Total : 85 groupes
+- Groupes vides : 12
+- Groupes sans description : 34
+
+GPO :
+- Total : 23 GPO
+- GPO non liées : 4
+- GPO créées il y a > 5 ans : 15
+
+**Questions :**
+1. Quels sont les risques de sécurité majeurs identifiés ?
+2. Classe ces risques par criticité (Critique, Élevé, Moyen, Faible)
+3. Pour chaque risque, propose une action corrective concrète
+4. Génère un résumé exécutif pour la direction IT (5-10 lignes)
+```
+
+### Étape 4 : Analyser la réponse de l'IA
+
+L'IA va fournir une analyse structurée.
+
+**Exemple de réponse attendue** :
+
+```
+## Analyse de sécurité Active Directory
+
+### Résumé exécutif
+
+L'audit révèle plusieurs faiblesses de sécurité dans Active Directory :
+- 22 comptes inactifs depuis plus de 90 jours représentent un risque d'accès non autorisé
+- 8 comptes avec mots de passe n'expirant jamais violent les politiques de sécurité
+- 5 membres du groupe Domain Admins est excessif (recommandation : 2-3 maximum)
+- 12 groupes vides et 34 sans description compliquent la gestion des accès
+- 4 GPO non liées et 15 GPO anciennes nécessitent une revue et un nettoyage
+
+Impact global : Risque modéré à élevé de compromission en cas d'attaque ciblée.
+Actions prioritaires : Désactivation des comptes inactifs, révision des Domain Admins,
+application de l'expiration des mots de passe.
+
+### Risques identifiés
+
+#### 1. Comptes inactifs non désactivés (Criticité : ÉLEVÉE)
+
+**Risque** :
+Les 22 comptes inactifs depuis plus de 90 jours constituent des cibles potentielles
+pour des attaquants. Ces comptes peuvent avoir conservé des permissions importantes
+et ne sont plus surveillés activement.
+
+**Impact** :
+- Accès non autorisé aux ressources d'entreprise
+- Élévation de privilèges si comptes privilégiés
+- Non-conformité RGPD (comptes d'anciens employés)
+
+**Action corrective** :
+1. Désactiver immédiatement tous les comptes inactifs > 90 jours
+2. Déplacer dans une OU "Comptes désactivés"
+3. Après 30 jours sans réclamation, supprimer les comptes
+4. Mettre en place un processus automatisé de désactivation
+
+**Script PowerShell** :
+```powershell
+$inactiveDate = (Get-Date).AddDays(-90)
+Get-ADUser -Filter {LastLogonDate -lt $inactiveDate -and Enabled -eq $true} |
+    Disable-ADAccount -WhatIf
+```
+
+#### 2. Comptes avec PasswordNeverExpires (Criticité : ÉLEVÉE)
+
+**Risque** :
+8 comptes configurés avec PasswordNeverExpires violent la politique de sécurité.
+Des mots de passe jamais changés sont plus susceptibles d'être compromis.
+
+**Impact** :
+- Mots de passe faibles ou compromis restent actifs indéfiniment
+- Non-conformité avec les standards de sécurité (ISO 27001, NIST)
+
+**Action corrective** :
+1. Identifier ces comptes et valider la nécessité (comptes de service ?)
+2. Pour les comptes de service : utiliser des Managed Service Accounts (gMSA)
+3. Pour les comptes utilisateurs : forcer l'expiration du mot de passe
+
+**Script PowerShell** :
+```powershell
+Get-ADUser -Filter {PasswordNeverExpires -eq $true -and Enabled -eq $true} |
+    Set-ADUser -PasswordNeverExpires $false -WhatIf
+```
+
+#### 3. Nombre excessif de Domain Admins (Criticité : CRITIQUE)
+
+**Risque** :
+5 comptes dans Domain Admins est excessif. Ce groupe donne un contrôle total
+sur le domaine. Chaque compte supplémentaire augmente la surface d'attaque.
+
+**Recommandation Microsoft** : 2-3 comptes maximum (admin principal + 1-2 backups)
+
+**Impact** :
+- Risque d'élévation de privilèges en cas de compromission d'un seul compte
+- Difficulté de traçabilité des actions administratives
+
+**Action corrective** :
+1. Auditer chaque membre : qui est-il, pourquoi est-il Domain Admin ?
+2. Retirer les comptes non strictement nécessaires
+3. Créer des groupes à privilèges délégués (Server Admins, Helpdesk Admins)
+4. Utiliser des PAM (Privileged Access Management) ou JIT (Just-In-Time access)
+
+#### 4. Groupes mal documentés (Criticité : MOYENNE)
+
+**Risque** :
+- 12 groupes vides occupent l'annuaire sans utilité
+- 34 groupes sans description compliquent la gestion des accès
+
+**Impact** :
+- Erreurs d'attribution de permissions
+- Difficulté d'audit et de conformité
+- Perte de temps lors de la gestion des accès
+
+**Action corrective** :
+1. Supprimer les groupes vides après validation qu'ils ne sont pas utilisés dans des ACL
+2. Documenter chaque groupe restant (description, usage, responsable)
+3. Établir une politique de nommage et documentation des groupes
+
+#### 5. GPO non utilisées et anciennes (Criticité : FAIBLE)
+
+**Risque** :
+- 4 GPO non liées à des OU occupent l'environnement sans effet
+- 15 GPO créées il y a > 5 ans peuvent contenir des configurations obsolètes
+
+**Impact** :
+- Complexité inutile de l'environnement
+- Risque de configurations obsolètes ou contradictoires
+
+**Action corrective** :
+1. Sauvegarder toutes les GPO (Get-GPOReport)
+2. Supprimer les GPO non liées après validation
+3. Auditer les GPO anciennes pour vérifier leur pertinence
+4. Documenter chaque GPO active (objectif, cible, date de dernière revue)
+
+### Plan d'action priorisé
+
+1. **Semaine 1** (Actions critiques)
+   - Révision des membres Domain Admins
+   - Désactivation des comptes inactifs
+
+2. **Semaine 2** (Actions élevées)
+   - Correction des comptes PasswordNeverExpires
+   - Mise en place de gMSA pour les comptes de service
+
+3. **Semaine 3-4** (Actions moyennes)
+   - Documentation et nettoyage des groupes
+   - Révision et nettoyage des GPO
+
+4. **Actions continues**
+   - Mise en place d'un processus d'audit trimestriel
+   - Automatisation de la désactivation des comptes inactifs
+   - Formation des administrateurs aux bonnes pratiques
+```
+
+### Étape 5 : Valider et compléter l'analyse
+
+Relire l'analyse de l'IA et :
+- Vérifier la pertinence des risques identifiés
+- Ajuster les priorités selon le contexte de l'entreprise
+- Compléter avec des analyses spécifiques (permissions NTFS, délégations)
+
+### Étape 6 : Générer des scripts de correction
+
+Demander à l'IA de générer les scripts PowerShell de correction :
+
+```
+Génère un script PowerShell complet pour :
+1. Désactiver les comptes inactifs > 90 jours
+2. Les déplacer dans une OU "OU=Disabled,DC=entreprise,DC=local"
+3. Logger chaque opération dans un fichier
+4. Envoyer un rapport par email
+
+Inclure :
+- Gestion d'erreurs (try/catch)
+- Mode -WhatIf pour simulation
+- Logs détaillés
+- Vérifications de sécurité
+```
+
+### Étape 7 : Rédiger le rapport d'audit final
+
+Utiliser l'analyse de l'IA comme base pour le rapport, en ajoutant :
+- Captures d'écran des exports
+- Graphiques (nombre de comptes par statut, évolution dans le temps)
+- Planning de mise en œuvre
+- Budget si applicable (outils PAM, formation)
+
+## Scripts / Commandes / Configurations
+
+### Script d'audit complet automatisé
+
+```powershell
+<#
+.SYNOPSIS
+    Audit Active Directory complet
+.DESCRIPTION
+    Extrait toutes les données pertinentes pour un audit AD
+    Génère des rapports CSV et un résumé HTML
+.EXAMPLE
+    .\Audit-ActiveDirectory.ps1 -OutputPath "C:\Audit"
+#>
+
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory=$false)]
+    [string]$OutputPath = "C:\Audit_AD_$(Get-Date -Format 'yyyyMMdd')"
+)
+
+# Création du dossier de sortie
+New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+
+Write-Host "[INFO] Début de l'audit Active Directory" -ForegroundColor Cyan
+Write-Host "[INFO] Résultats dans : $OutputPath" -ForegroundColor Cyan
+
+# 1. Comptes utilisateurs
+Write-Host "[1/8] Export des comptes utilisateurs..." -ForegroundColor Yellow
+Get-ADUser -Filter * -Properties * |
+    Select-Object Name, SamAccountName, Enabled, Created, LastLogonDate, PasswordLastSet, PasswordNeverExpires, PasswordExpired, MemberOf |
+    Export-Csv "$OutputPath\Users_All.csv" -NoTypeInformation
+
+# 2. Comptes inactifs
+Write-Host "[2/8] Identification des comptes inactifs..." -ForegroundColor Yellow
+$inactiveDate = (Get-Date).AddDays(-90)
+$inactiveUsers = Get-ADUser -Filter {LastLogonDate -lt $inactiveDate -and Enabled -eq $true} -Properties LastLogonDate |
+    Select-Object Name, SamAccountName, LastLogonDate, @{Name="InactiveDays";Expression={(New-TimeSpan -Start $_.LastLogonDate -End (Get-Date)).Days}}
+$inactiveUsers | Export-Csv "$OutputPath\Users_Inactive_90days.csv" -NoTypeInformation
+
+# 3. Comptes avec PasswordNeverExpires
+Write-Host "[3/8] Comptes avec mot de passe n'expirant jamais..." -ForegroundColor Yellow
+$pwdNeverExpires = Get-ADUser -Filter {PasswordNeverExpires -eq $true -and Enabled -eq $true} -Properties PasswordNeverExpires, PasswordLastSet |
+    Select-Object Name, SamAccountName, PasswordLastSet, @{Name="PasswordAge";Expression={(New-TimeSpan -Start $_.PasswordLastSet -End (Get-Date)).Days}}
+$pwdNeverExpires | Export-Csv "$OutputPath\Users_PasswordNeverExpires.csv" -NoTypeInformation
+
+# 4. Domain Admins
+Write-Host "[4/8] Membres Domain Admins..." -ForegroundColor Yellow
+$domainAdmins = Get-ADGroupMember -Identity "Domain Admins" -Recursive |
+    Select-Object Name, SamAccountName, objectClass
+$domainAdmins | Export-Csv "$OutputPath\DomainAdmins_Members.csv" -NoTypeInformation
+
+# 5. Groupes de sécurité
+Write-Host "[5/8] Export des groupes de sécurité..." -ForegroundColor Yellow
+$groups = Get-ADGroup -Filter * -Properties Members, Description, ManagedBy |
+    Select-Object Name, GroupScope, GroupCategory, Description, @{Name="MemberCount";Expression={$_.Members.Count}}, ManagedBy
+$groups | Export-Csv "$OutputPath\Groups_All.csv" -NoTypeInformation
+
+# 6. Groupes vides
+Write-Host "[6/8] Identification des groupes vides..." -ForegroundColor Yellow
+$emptyGroups = $groups | Where-Object { $_.MemberCount -eq 0 }
+$emptyGroups | Export-Csv "$OutputPath\Groups_Empty.csv" -NoTypeInformation
+
+# 7. GPO
+Write-Host "[7/8] Export des GPO..." -ForegroundColor Yellow
+$gpos = Get-GPO -All |
+    Select-Object DisplayName, CreationTime, ModificationTime, GpoStatus, @{Name="Age";Expression={(New-TimeSpan -Start $_.CreationTime -End (Get-Date)).Days}}
+$gpos | Export-Csv "$OutputPath\GPOs_All.csv" -NoTypeInformation
+
+# 8. Génération du rapport de synthèse
+Write-Host "[8/8] Génération du rapport de synthèse..." -ForegroundColor Yellow
+
+$totalUsers = (Get-ADUser -Filter *).Count
+$enabledUsers = (Get-ADUser -Filter {Enabled -eq $true}).Count
+$disabledUsers = (Get-ADUser -Filter {Enabled -eq $false}).Count
+
+$summary = @"
+===================================
+RAPPORT D'AUDIT ACTIVE DIRECTORY
+Date : $(Get-Date -Format "yyyy-MM-dd HH:mm")
+===================================
+
+STATISTIQUES GÉNÉRALES
+----------------------
+Total utilisateurs : $totalUsers
+Comptes actifs : $enabledUsers
+Comptes désactivés : $disabledUsers
+
+ALERTES DE SÉCURITÉ
+-------------------
+Comptes inactifs (> 90 jours) : $($inactiveUsers.Count)
+Comptes PasswordNeverExpires : $($pwdNeverExpires.Count)
+Membres Domain Admins : $($domainAdmins.Count)
+
+HYGIÈNE DE L'ANNUAIRE
+---------------------
+Total groupes : $($groups.Count)
+Groupes vides : $($emptyGroups.Count)
+Total GPO : $($gpos.Count)
+
+RECOMMANDATIONS
+---------------
+1. Désactiver les $($inactiveUsers.Count) comptes inactifs
+2. Forcer l'expiration des mots de passe pour les $($pwdNeverExpires.Count) comptes concernés
+3. Réduire le nombre de Domain Admins à 2-3 (actuellement : $($domainAdmins.Count))
+4. Supprimer ou documenter les $($emptyGroups.Count) groupes vides
+
+Tous les détails sont disponibles dans les fichiers CSV du dossier :
+$OutputPath
+"@
+
+$summary | Out-File "$OutputPath\00_SUMMARY.txt" -Encoding UTF8
+
+Write-Host "`n$summary" -ForegroundColor Green
+Write-Host "`n[OK] Audit terminé avec succès" -ForegroundColor Green
+Write-Host "[OK] Résultats disponibles dans : $OutputPath" -ForegroundColor Green
+```
+
+### Script de correction automatisée (exemple : comptes inactifs)
+
+```powershell
+<#
+.SYNOPSIS
+    Désactivation des comptes AD inactifs
+.DESCRIPTION
+    Désactive et déplace les comptes inactifs > 90 jours
+.PARAMETER WhatIf
+    Mode simulation sans modification
+.EXAMPLE
+    .\Disable-InactiveADUsers.ps1 -WhatIf
+    .\Disable-InactiveADUsers.ps1 -Confirm
+#>
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [int]$InactiveDays = 90,
+    [string]$TargetOU = "OU=Disabled,DC=entreprise,DC=local",
+    [string]$LogFile = "C:\Logs\Disabled_Users_$(Get-Date -Format 'yyyyMMdd').log"
+)
+
+function Write-Log {
+    param([string]$Message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$timestamp - $Message" | Out-File $LogFile -Append
+    Write-Host $Message
+}
+
+Write-Log "=== Début du processus de désactivation des comptes inactifs ==="
+
+# Récupération des comptes inactifs
+$inactiveDate = (Get-Date).AddDays(-$InactiveDays)
+$inactiveUsers = Get-ADUser -Filter {LastLogonDate -lt $inactiveDate -and Enabled -eq $true} -Properties LastLogonDate
+
+Write-Log "Comptes inactifs détectés : $($inactiveUsers.Count)"
+
+foreach ($user in $inactiveUsers) {
+    try {
+        $inactiveDays = (New-TimeSpan -Start $user.LastLogonDate -End (Get-Date)).Days
+
+        Write-Log "Traitement : $($user.SamAccountName) (Inactif depuis $inactiveDays jours)"
+
+        # Désactivation
+        if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Désactiver le compte")) {
+            Disable-ADAccount -Identity $user -ErrorAction Stop
+            Write-Log "  [OK] Compte désactivé"
+
+            # Déplacement vers OU Disabled
+            Move-ADObject -Identity $user.DistinguishedName -TargetPath $TargetOU -ErrorAction Stop
+            Write-Log "  [OK] Compte déplacé vers $TargetOU"
+        }
+
+    } catch {
+        Write-Log "  [ERREUR] $($user.SamAccountName) : $_"
+    }
+}
+
+Write-Log "=== Fin du processus ==="
+```
+
+## Risques et limites
+
+### Risques de l'audit
+
+**Impact opérationnel** : Désactiver massivement des comptes peut générer des réclamations. Toujours faire une validation manuelle avant action.
+
+**Faux positifs** : Les comptes de service peuvent apparaître comme inactifs (LastLogonDate non mis à jour). Filtrer avec précaution.
+
+### Limites de l'IA
+
+**Analyse contextuelle limitée** : L'IA ne connaît pas le contexte spécifique de votre entreprise. Certaines configurations peuvent être volontaires.
+
+**Pas d'exécution directe** : L'IA génère des scripts mais ne les exécute pas. Toujours tester en mode -WhatIf avant application réelle.
+
+### Risques de correction automatique
+
+**Suppression accidentelle** : Ne jamais supprimer des comptes/groupes sans sauvegarde et période de validation.
+
+**Impact sur les applications** : Certains comptes/groupes peuvent être utilisés par des applications. Toujours tester en préproduction.
+
+## Bonnes pratiques
+
+### Avant l'audit
+
+1. Informer la direction IT et obtenir l'autorisation
+2. Planifier l'audit en dehors des heures de pointe
+3. Sauvegarder l'état actuel de l'AD (snapshot, backup)
+4. Préparer un environnement de test pour valider les corrections
+
+### Pendant l'audit
+
+1. Utiliser des comptes avec privilèges appropriés (pas de Domain Admin si possible)
+2. Toujours utiliser -WhatIf avant toute modification
+3. Logger toutes les opérations
+4. Documenter les découvertes au fur et à mesure
+
+### Après l'audit
+
+1. Présenter le rapport à la direction IT
+2. Valider le plan d'action avant application
+3. Appliquer les corrections par étapes (pas tout d'un coup)
+4. Monitorer les impacts (tickets, réclamations)
+5. Planifier un audit de suivi dans 3-6 mois
+
+### Automatisation continue
+
+1. Mettre en place des alertes sur les comptes inactifs
+2. Automatiser le reporting mensuel (Task Scheduler)
+3. Implémenter des politiques de cycle de vie des comptes
+4. Former les administrateurs aux bonnes pratiques
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise avancée de PowerShell et Active Directory
+- Connaissance des bonnes pratiques de sécurité AD
+- Capacité à auditer et sécuriser un annuaire d'entreprise
+
+### Méthodologie rigoureuse
+
+- Approche structurée : extraction → analyse → recommandations → correction
+- Utilisation de l'IA pour accélérer l'analyse sans sacrifier la qualité
+- Priorisation des risques par criticité
+
+### Sens de la sécurité
+
+- Identification proactive des vulnérabilités
+- Proposition de solutions concrètes et applicables
+- Conscience des impacts business de la sécurité
+
+### Communication
+
+- Capacité à traduire des risques techniques en langage business
+- Rédaction de rapports d'audit clairs et actionnables
+- Priorisation et planification des actions correctives
+
+**Message au recruteur** : Ce guide démontre un administrateur système capable d'auditer efficacement Active Directory, d'identifier les risques de sécurité et de proposer des solutions concrètes. L'utilisation de l'IA accélère l'analyse sans compromettre la rigueur technique, permettant de se concentrer sur la validation et l'implémentation des corrections.

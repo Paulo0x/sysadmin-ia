@@ -1,0 +1,667 @@
+# Analyse configuration Cisco avec assistance IA
+
+## Objectif
+
+Analyser rapidement des configurations de switchs/routeurs Cisco pour identifier des erreurs, incohérences ou problèmes de sécurité en exploitant l'IA pour détecter automatiquement les anomalies et proposer des corrections alignées avec les best practices.
+
+## Contexte entreprise
+
+Une PME de 80 employés dispose d'une infrastructure réseau Cisco :
+- 5 switchs Catalyst 2960 (accès)
+- 2 switchs Catalyst 3750 (distribution)
+- 1 routeur Cisco ISR 4331 (WAN)
+- Configuration manuelle accumulée sur 5 ans
+- Multiples administrateurs successifs
+- Documentation inexistante ou obsolète
+
+**Problème** : Configurations devenues complexes, difficiles à auditer, avec risque d'erreurs impactant la sécurité et les performances.
+
+**Objectif** : Auditer toutes les configurations en 2 jours au lieu de 2 semaines.
+
+## Problème
+
+Analyser manuellement des configurations Cisco implique :
+- Lire des milliers de lignes de configuration
+- Comparer avec les best practices Cisco
+- Identifier les incohérences entre équipements
+- Détecter les failles de sécurité (VLAN natifs, telnet actif, etc.)
+- Vérifier l'alignation avec la documentation
+
+**Temps estimé** : 2-3 heures par équipement = 16-24 heures pour 8 équipements
+
+**Difficultés** :
+- Syntaxe Cisco parfois cryptique
+- Configurations longues et denses
+- Besoin d'expertise réseau approfondie
+- Risque d'oublier des problèmes critiques
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+```bash
+# Connexion au switch
+ssh admin@192.168.1.10
+
+# Export configuration
+show running-config > switch1-config.txt
+
+# Analyse manuelle ligne par ligne
+# Vérification VLAN, trunk, STP, sécurité...
+# Recherche dans documentation Cisco
+```
+
+**Problèmes** :
+- Fastidieux et chronophage
+- Risque d'oubli de problèmes
+- Nécessite expertise Cisco avancée
+- Pas de comparaison automatique entre équipements
+
+## Apport de l'IA
+
+L'IA permet de :
+- Analyser instantanément des configurations longues
+- Identifier automatiquement les erreurs de configuration
+- Détecter les failles de sécurité
+- Comparer avec les best practices Cisco
+- Générer un rapport d'audit structuré
+- Proposer des corrections concrètes
+
+**Temps avec IA** : 15-30 minutes par équipement
+
+**Gain de productivité** : 80-85%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Extraction des configurations
+
+**Action** : Récupérer la running-config de chaque équipement
+
+```bash
+#!/bin/bash
+# collect-cisco-configs.sh
+
+DEVICES=("192.168.1.10" "192.168.1.11" "192.168.1.12" "192.168.1.20" "192.168.1.21" "192.168.1.30")
+USERNAME="admin"
+OUTPUT_DIR="./cisco-configs"
+
+mkdir -p "$OUTPUT_DIR"
+
+for device in "${DEVICES[@]}"; do
+    echo "Collecte config: $device"
+
+    # SSH avec expect ou sshpass
+    sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$device" "show running-config" > "$OUTPUT_DIR/$device.txt"
+
+    if [ $? -eq 0 ]; then
+        echo "OK: $device"
+    else
+        echo "ERREUR: $device"
+    fi
+done
+
+echo "Configurations collectées dans $OUTPUT_DIR"
+```
+
+**Résultat** : 8 fichiers .txt avec les running-config complètes
+
+### Étape 2 : Analyse initiale avec l'IA
+
+**Prompt** :
+
+```
+Analyse cette configuration Cisco Catalyst 2960.
+
+Configuration :
+[Copier-coller le contenu du fichier switch1-config.txt]
+
+Identifie :
+1. Problèmes de sécurité (telnet, VLAN natif 1, pas de port-security)
+2. Erreurs de configuration (incohérences, doublons)
+3. Non-respect des best practices Cisco
+4. Suggestions d'amélioration
+
+Format : Liste structurée avec niveau de criticité (CRITIQUE/MOYEN/FAIBLE)
+```
+
+**Réponse IA** :
+
+```
+=== AUDIT CONFIGURATION SWITCH 192.168.1.10 ===
+
+[CRITIQUE] Sécurité
+1. Telnet activé (ligne vty 0-4)
+   → Risque : Trafic non chiffré
+   → Correction : Désactiver telnet, utiliser SSH uniquement
+
+2. VLAN natif sur trunk = VLAN 1
+   → Risque : VLAN hopping attack
+   → Correction : Changer native VLAN sur tous les trunks
+
+3. Aucun port-security configuré
+   → Risque : MAC flooding, connexions non autorisées
+   → Correction : Activer port-security sur ports d'accès
+
+4. Mot de passe enable en clair
+   → Risque : Compromission du mot de passe
+   → Correction : Utiliser "enable secret" au lieu de "enable password"
+
+[MOYEN] Configuration
+5. STP mode PVST+ (défaut)
+   → Amélioration : Migrer vers Rapid-PVST+ pour convergence plus rapide
+
+6. Logging non configuré
+   → Amélioration : Activer logging vers serveur syslog
+
+7. SNMP v2c actif (community public)
+   → Risque : Accès non sécurisé aux statistiques
+   → Correction : Migrer vers SNMPv3 ou désactiver
+
+[FAIBLE] Optimisation
+8. Pas de description sur les interfaces
+   → Amélioration : Ajouter des descriptions claires
+
+9. Pas de banner de connexion
+   → Amélioration : Ajouter un banner légal
+
+10. NTP non configuré
+    → Amélioration : Configurer synchronisation NTP
+```
+
+### Étape 3 : Demander les corrections à l'IA
+
+**Prompt** :
+
+```
+Génère les commandes Cisco pour corriger les problèmes CRITIQUES identifiés.
+
+Problèmes :
+1. Telnet activé
+2. VLAN natif = 1 sur trunks
+3. Pas de port-security
+4. Mot de passe enable en clair
+
+Format : Commandes Cisco copy-paste ready avec commentaires
+```
+
+**Réponse IA** :
+
+```cisco
+! ===================================
+! CORRECTIONS SÉCURITÉ - SWITCH 192.168.1.10
+! ===================================
+
+! 1. Désactiver Telnet et forcer SSH
+line vty 0 4
+ transport input ssh
+ login local
+ exec-timeout 5 0
+exit
+
+! Vérifier que SSH est configuré
+ip domain-name entreprise.local
+crypto key generate rsa modulus 2048
+
+! 2. Changer VLAN natif sur tous les trunks
+vlan 999
+ name NATIVE_VLAN_UNUSED
+exit
+
+interface range GigabitEthernet0/1-2
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,999
+exit
+
+! 3. Activer port-security sur ports d'accès (exemple VLAN 10)
+interface range FastEthernet0/1-24
+ switchport mode access
+ switchport access vlan 10
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation restrict
+ switchport port-security mac-address sticky
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+exit
+
+! 4. Corriger mot de passe enable
+no enable password
+enable secret Str0ng!P@ss2024
+
+! Sauvegarder
+write memory
+```
+
+### Étape 4 : Comparaison multi-équipements
+
+**Prompt** :
+
+```
+Compare ces 3 configurations de switchs Cisco.
+
+Switch 1 (192.168.1.10) :
+[Configuration switch1]
+
+Switch 2 (192.168.1.11) :
+[Configuration switch2]
+
+Switch 3 (192.168.1.12) :
+[Configuration switch3]
+
+Identifie :
+1. Incohérences (VLAN déclarés différemment, STP root différent)
+2. Configurations manquantes sur certains équipements
+3. Différences de sécurité entre les switchs
+
+Format : Tableau comparatif
+```
+
+**Réponse IA** :
+
+```
+=== COMPARAISON CONFIGURATIONS ===
+
+| Paramètre              | Switch1 (.10) | Switch2 (.11) | Switch3 (.12) | Incohérence ? |
+|------------------------|---------------|---------------|---------------|---------------|
+| VLAN 10 (nom)          | ADMIN         | ADMIN         | Administratif | OUI ⚠️        |
+| VLAN 20 (nom)          | USERS         | UTILISATEURS  | USERS         | OUI ⚠️        |
+| VLAN natif trunk       | 1             | 999           | 1             | OUI 🔴        |
+| SSH activé             | Oui           | Oui           | Non (telnet)  | OUI 🔴        |
+| Port-security          | Non           | Non           | Non           | Cohérent      |
+| STP Root Priority      | 32768 (def)   | 4096          | 32768 (def)   | Incohérent    |
+| Logging server         | Non configuré | 10.0.0.50     | Non configuré | OUI ⚠️        |
+| NTP server             | Non configuré | Non configuré | Non configuré | Cohérent      |
+
+PROBLÈMES CRITIQUES :
+1. Switch3 utilise encore Telnet → Sécurité compromise
+2. VLAN natif incohérent (Switch2=999, autres=1) → Risque trunk non fonctionnel
+3. Nommage VLAN incohérent → Confusion documentation
+
+RECOMMANDATIONS :
+1. Uniformiser VLAN natif à 999 partout
+2. Activer SSH sur Switch3
+3. Standardiser les noms de VLAN
+4. Définir un STP root primary sur Switch2 et secondary sur Switch1
+```
+
+### Étape 5 : Génération du rapport d'audit
+
+**Prompt** :
+
+```
+Génère un rapport d'audit complet en Markdown.
+
+Analyse :
+[Copier les réponses des prompts précédents]
+
+Le rapport doit contenir :
+1. Résumé exécutif
+2. Criticité par équipement (score/10)
+3. Top 5 des problèmes prioritaires
+4. Plan de remédiation étape par étape
+5. Estimation du temps de correction
+
+Format : Markdown professionnel pour management
+```
+
+**Réponse IA (extrait)** :
+
+```markdown
+# Rapport d'Audit Infrastructure Réseau Cisco
+
+**Date** : 2024-01-15
+**Auditeur** : Service IT
+**Périmètre** : 8 équipements Cisco (5x Catalyst 2960, 2x Catalyst 3750, 1x ISR 4331)
+
+## 1. Résumé exécutif
+
+L'audit a révélé **12 problèmes de sécurité critiques** et **18 non-conformités** aux best practices Cisco.
+
+**Niveau de risque global** : ÉLEVÉ 🔴
+
+**Principales vulnérabilités** :
+- 3 équipements exposés via Telnet (trafic non chiffré)
+- VLAN natif par défaut (VLAN 1) sur 6 équipements → Risque VLAN hopping
+- Aucun port-security configuré → Risque MAC flooding
+- Mots de passe en clair dans certaines configurations
+
+**Temps de remédiation estimé** : 16 heures (2 jours)
+**Coût** : Interne (pas d'investissement matériel nécessaire)
+
+## 2. Score de sécurité par équipement
+
+| Équipement           | IP           | Score | Criticité |
+|----------------------|--------------|-------|-----------|
+| Switch1 (Catalyst)   | 192.168.1.10 | 4/10  | 🔴 ÉLEVÉ  |
+| Switch2 (Catalyst)   | 192.168.1.11 | 6/10  | 🟠 MOYEN  |
+| Switch3 (Catalyst)   | 192.168.1.12 | 3/10  | 🔴 ÉLEVÉ  |
+| Switch4 (Catalyst)   | 192.168.1.13 | 4/10  | 🔴 ÉLEVÉ  |
+| Switch5 (Catalyst)   | 192.168.1.14 | 5/10  | 🟠 MOYEN  |
+| Core1 (3750)         | 192.168.1.20 | 7/10  | 🟡 FAIBLE |
+| Core2 (3750)         | 192.168.1.21 | 7/10  | 🟡 FAIBLE |
+| Router1 (ISR)        | 192.168.1.30 | 5/10  | 🟠 MOYEN  |
+
+## 3. Top 5 des problèmes prioritaires
+
+1. **Telnet actif sur 3 équipements**
+   - Criticité : CRITIQUE
+   - Impact : Interception des mots de passe administrateur
+   - Remédiation : 30 minutes
+
+2. **VLAN natif = 1 sur les trunks**
+   - Criticité : CRITIQUE
+   - Impact : Attaque VLAN hopping possible
+   - Remédiation : 2 heures
+
+3. **Absence de port-security**
+   - Criticité : ÉLEVÉ
+   - Impact : Connexions non autorisées, MAC flooding
+   - Remédiation : 4 heures
+
+4. **Mots de passe en clair**
+   - Criticité : ÉLEVÉ
+   - Impact : Compromission d'accès si config exposée
+   - Remédiation : 30 minutes
+
+5. **Pas de logging centralisé**
+   - Criticité : MOYEN
+   - Impact : Difficulté à tracer incidents
+   - Remédiation : 1 heure
+
+## 4. Plan de remédiation
+
+### Phase 1 : Urgence (Jour 1 - 4h)
+- [ ] Désactiver Telnet partout, forcer SSH
+- [ ] Changer mots de passe enable en secrets
+- [ ] Modifier VLAN natif sur tous les trunks
+
+### Phase 2 : Sécurisation (Jour 1-2 - 8h)
+- [ ] Configurer port-security sur tous les ports d'accès
+- [ ] Activer BPDU Guard sur ports accès
+- [ ] Configurer logging vers serveur syslog
+
+### Phase 3 : Optimisation (Jour 2 - 4h)
+- [ ] Migrer STP vers Rapid-PVST+
+- [ ] Configurer NTP
+- [ ] Ajouter descriptions sur interfaces
+- [ ] Créer banner de connexion
+
+**Total** : 16 heures
+```
+
+### Étape 6 : Application des corrections
+
+**Action** : Appliquer les configurations générées par l'IA en environnement de maintenance
+
+```bash
+# Sauvegarde avant modification
+for device in "${DEVICES[@]}"; do
+    sshpass -p "$PASSWORD" ssh "$USERNAME@$device" "show running-config" > "backup-$device-$(date +%Y%m%d).txt"
+done
+
+# Application manuelle des commandes de correction
+# Connexion au switch
+ssh admin@192.168.1.10
+
+# Copier-coller les commandes générées par l'IA
+# Tester la connectivité après chaque modification
+```
+
+**Validation** : Vérifier que les corrections n'ont pas cassé la connectivité
+
+## Scripts / Commandes / Configurations
+
+### Script de collecte automatique
+
+```bash
+#!/bin/bash
+# cisco-config-collector.sh
+# Collecte automatique des configurations Cisco
+
+DEVICES_FILE="devices.txt"
+USERNAME="admin"
+OUTPUT_DIR="./configs-$(date +%Y%m%d)"
+
+mkdir -p "$OUTPUT_DIR"
+
+while IFS= read -r device; do
+    echo "[$(date '+%H:%M:%S')] Collecte: $device"
+
+    timeout 30 sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no \
+        -o ConnectTimeout=10 "$USERNAME@$device" \
+        "show running-config" > "$OUTPUT_DIR/$device.txt" 2>&1
+
+    if [ $? -eq 0 ]; then
+        echo "  ✓ OK"
+    else
+        echo "  ✗ ERREUR"
+    fi
+
+    sleep 2
+done < "$DEVICES_FILE"
+
+echo ""
+echo "Configurations sauvegardées dans: $OUTPUT_DIR"
+ls -lh "$OUTPUT_DIR"
+```
+
+### Fichier devices.txt
+
+```
+192.168.1.10
+192.168.1.11
+192.168.1.12
+192.168.1.13
+192.168.1.14
+192.168.1.20
+192.168.1.21
+192.168.1.30
+```
+
+### Template de configuration sécurisée
+
+```cisco
+! ===================================
+! TEMPLATE SÉCURITÉ CISCO SWITCH
+! Basé sur Cisco Best Practices
+! ===================================
+
+! === Hostname et domaine ===
+hostname SWITCH-XX
+ip domain-name entreprise.local
+
+! === Mots de passe ===
+enable secret 5 [hash généré]
+service password-encryption
+
+! === Utilisateur local ===
+username admin privilege 15 secret 5 [hash]
+
+! === VLANs ===
+vlan 10
+ name ADMIN
+vlan 20
+ name USERS
+vlan 30
+ name SERVERS
+vlan 999
+ name NATIVE_UNUSED
+
+! === SSH ===
+crypto key generate rsa modulus 2048
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+! === VTY (accès distant) ===
+line vty 0 4
+ transport input ssh
+ login local
+ exec-timeout 5 0
+ logging synchronous
+exit
+
+! === Console ===
+line console 0
+ login local
+ exec-timeout 5 0
+ logging synchronous
+exit
+
+! === Trunks ===
+interface range GigabitEthernet0/1-2
+ description TRUNK vers CORE
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,999
+ spanning-tree guard root
+exit
+
+! === Ports d'accès (exemple VLAN 10) ===
+interface range FastEthernet0/1-24
+ description POSTES ADMINISTRATIFS
+ switchport mode access
+ switchport access vlan 10
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation restrict
+ switchport port-security mac-address sticky
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ no cdp enable
+exit
+
+! === STP ===
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+spanning-tree vlan 10,20,30 priority 8192
+
+! === Logging ===
+logging buffered 51200
+logging host 10.0.0.50
+logging trap informational
+logging source-interface Vlan10
+
+! === NTP ===
+ntp server 10.0.0.100 prefer
+
+! === SNMP (v3 recommandé) ===
+! snmp-server group MONIT v3 priv
+! snmp-server user snmpadmin MONIT v3 auth sha AuthPass123 priv aes 128 PrivPass456
+
+! === Banner ===
+banner login ^C
+*****************************************************************
+* ACCES RESERVE - Entreprise XYZ                               *
+* Tout acces non autorise sera poursuivi                        *
+* Les connexions sont enregistrees et monitorees                *
+*****************************************************************
+^C
+
+! === Sauvegarder ===
+end
+write memory
+```
+
+### Commandes de vérification post-correction
+
+```cisco
+! Vérifier SSH actif
+show ip ssh
+
+! Vérifier VLAN natif
+show interfaces trunk
+
+! Vérifier port-security
+show port-security interface FastEthernet0/1
+
+! Vérifier logging
+show logging
+
+! Vérifier NTP
+show ntp status
+
+! Vérifier STP root
+show spanning-tree root
+```
+
+## Risques et limites
+
+### Risques de l'automatisation
+
+**Erreurs de copier-coller** : Les commandes générées par l'IA doivent être relues avant application. Une erreur peut couper la connectivité.
+
+**Perte de connectivité** : Modifier le VLAN natif ou SSH peut couper l'accès au switch. Toujours avoir un accès console de secours.
+
+**Impact production** : Les modifications réseau doivent être testées en maintenance ou sur un switch de test d'abord.
+
+### Limites de l'IA
+
+**Contexte incomplet** : L'IA analyse ce qu'on lui fournit. Si la configuration est tronquée, l'analyse peut être incomplète.
+
+**Configurations custom** : Des setups spécifiques (QoS avancé, multicast, stacking) peuvent nécessiter expertise manuelle.
+
+**Compatibilité version** : L'IA peut proposer des commandes pour IOS récent sur du matériel ancien. Vérifier la compatibilité.
+
+### Risques opérationnels
+
+**Sauvegarde obligatoire** : Toujours sauvegarder la running-config avant modification (`write memory` + export).
+
+**Fenêtre de maintenance** : Planifier les modifications en heures creuses avec validation client.
+
+## Bonnes pratiques
+
+### Avant l'audit
+
+1. Sauvegarder toutes les running-config
+2. Documenter la topologie réseau
+3. Identifier les fenêtres de maintenance possibles
+4. Préparer un accès console de secours
+
+### Pendant l'analyse IA
+
+1. Fournir la configuration complète (pas tronquée)
+2. Préciser le modèle et version IOS
+3. Indiquer le contexte d'utilisation (production, critique, etc.)
+4. Demander des explications pour les recommandations
+
+### Après l'audit
+
+1. Relire toutes les commandes générées par l'IA
+2. Tester les corrections sur un switch de lab si possible
+3. Appliquer les modifications en maintenance planifiée
+4. Valider chaque étape avant de passer à la suivante
+5. Documenter les changements effectués
+
+### Documentation
+
+1. Créer un repository Git des configurations
+2. Versionner chaque modification
+3. Maintenir un changelog des corrections
+4. Créer des runbooks pour les configurations types
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Expertise Cisco (switchs, routeurs, IOS)
+- Maîtrise des concepts réseau (VLAN, STP, trunking, sécurité)
+- Capacité d'audit et d'analyse de configurations complexes
+- Connaissance des best practices de sécurité réseau
+
+### Efficacité
+
+- Réduction du temps d'audit de 80-85%
+- Analyse rapide de configurations longues
+- Identification automatique de failles critiques
+- Génération de rapports professionnels pour le management
+
+### Utilisation stratégique de l'IA
+
+- Analyse de configurations multi-équipements
+- Génération de commandes de correction
+- Production de documentation structurée
+- Gain de temps massif sans compromis sur la qualité
+
+**Message au recruteur** : Ce guide démontre un administrateur réseau capable d'auditer rapidement une infrastructure Cisco complexe en exploitant l'IA pour accélérer l'analyse. La méthode est rigoureuse (collecte → analyse → comparaison → correction → validation), garantissant un audit complet et des corrections alignées avec les standards Cisco.

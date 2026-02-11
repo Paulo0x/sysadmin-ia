@@ -1,0 +1,378 @@
+# Générer un script PowerShell avec assistance IA
+
+## Objectif
+
+Créer rapidement des scripts PowerShell fonctionnels pour automatiser des tâches helpdesk courantes, en s'appuyant sur l'IA pour accélérer le développement et intégrer les bonnes pratiques.
+
+## Contexte entreprise
+
+Dans une PME de 150 utilisateurs, l'équipe IT (3 personnes) doit gérer quotidiennement des demandes répétitives : création de comptes utilisateurs, réinitialisation de mots de passe, vérification d'appartenance aux groupes AD, génération de rapports d'activité.
+
+Le temps passé sur ces tâches réduit la disponibilité pour des projets stratégiques. L'automatisation est nécessaire mais l'équipe a peu de temps pour développer des scripts complexes.
+
+## Problème
+
+Créer un script PowerShell demande :
+- Connaissance approfondie de la syntaxe et des cmdlets
+- Recherche de documentation (Microsoft Docs, forums)
+- Gestion des erreurs et cas limites
+- Tests et débogage
+- Temps estimé : 30 minutes à 2 heures selon la complexité
+
+Pour un technicien junior ou une personne peu familière avec PowerShell, cela peut prendre encore plus de temps et générer des erreurs.
+
+## Solution traditionnelle
+
+### Méthode classique
+
+1. Rechercher des exemples sur Google ou Stack Overflow
+2. Adapter le code trouvé à son besoin
+3. Consulter la documentation Microsoft pour les cmdlets
+4. Tester manuellement plusieurs fois
+5. Corriger les bugs un par un
+6. Finaliser le script
+
+**Temps moyen** : 45 minutes pour un script simple
+
+### Limites
+
+- Perte de temps sur la recherche
+- Code souvent copié sans compréhension complète
+- Gestion d'erreurs négligée
+- Documentation inexistante
+
+## Apport de l'IA
+
+L'IA permet de :
+- Générer une base de script fonctionnelle en 2 minutes
+- Inclure automatiquement la gestion d'erreurs
+- Obtenir des commentaires explicatifs
+- Adapter le code à des versions spécifiques de PowerShell
+- Proposer des améliorations (logging, paramètres)
+
+**Temps avec IA** : 5-10 minutes (génération + relecture + test)
+
+**Gain de productivité** : 75-80%
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Définir précisément le besoin
+
+Avant de solliciter l'IA, clarifier :
+- Quel est l'objectif du script ?
+- Quelles sont les entrées (paramètres, fichiers) ?
+- Quelles sont les sorties attendues ?
+- Quelles vérifications doivent être faites ?
+- Quel environnement (Windows 10, Server 2019, version PowerShell) ?
+
+**Exemple concret** :
+```
+Besoin : Script pour créer des utilisateurs AD depuis un CSV
+Entrée : Fichier CSV avec colonnes Prenom, Nom, Service
+Sortie : Comptes créés dans l'OU correspondante + log
+Vérifications : Utilisateur n'existe pas déjà
+Environnement : Windows Server 2019, PowerShell 5.1, AD DS installé
+```
+
+### Étape 2 : Rédiger un prompt structuré
+
+**Prompt efficace** :
+```
+Génère un script PowerShell pour créer des utilisateurs dans Active Directory
+à partir d'un fichier CSV contenant les colonnes : Prenom, Nom, Service.
+
+Le script doit :
+1. Importer le CSV depuis le chemin fourni en paramètre
+2. Pour chaque ligne, créer un utilisateur AD avec :
+   - Login au format prenom.nom (en minuscules)
+   - Nom complet : Prenom Nom
+   - Mot de passe temporaire : "TempPass2024!"
+   - OU cible : "OU=[Service],DC=entreprise,DC=local"
+3. Vérifier si l'utilisateur existe déjà avant création
+4. Logger chaque opération (succès/échec) dans un fichier log
+5. Afficher un résumé en fin d'exécution
+
+Environnement : Windows Server 2019, PowerShell 5.1, module ActiveDirectory installé.
+Ajoute des commentaires pour chaque section.
+```
+
+### Étape 3 : Analyser le code généré
+
+L'IA va fournir un script. **Ne pas l'exécuter immédiatement.**
+
+Vérifier :
+- Les cmdlets utilisées sont-elles correctes et existantes ?
+- La gestion d'erreurs est-elle présente (try/catch) ?
+- Les chemins et paramètres sont-ils configurables ?
+- Le code est-il lisible et commenté ?
+
+**Points d'attention courants** :
+- Credentials hardcodés (mauvaise pratique)
+- Permissions AD non vérifiées
+- Chemins de fichiers en dur
+
+### Étape 4 : Tester dans un environnement de dev
+
+1. Créer un CSV de test avec 2-3 lignes
+2. Exécuter le script sur un environnement de test (pas la prod !)
+3. Vérifier les logs générés
+4. Valider que les utilisateurs sont créés correctement
+
+**Commande de test** :
+```powershell
+.\Create-ADUsers.ps1 -CSVPath "C:\Temp\users_test.csv" -LogPath "C:\Temp\creation.log" -WhatIf
+```
+
+Le paramètre `-WhatIf` (à ajouter au script si absent) permet de simuler sans créer réellement.
+
+### Étape 5 : Affiner avec l'IA si nécessaire
+
+Si le script ne répond pas exactement au besoin, demander des ajustements :
+
+```
+Le script fonctionne bien. Peux-tu ajouter :
+- Un paramètre -SendEmail pour envoyer les credentials par mail
+- Une vérification que le module ActiveDirectory est chargé
+- Un mode verbeux (-Verbose) pour afficher les détails
+```
+
+### Étape 6 : Documenter et versionner
+
+1. Ajouter un en-tête au script :
+```powershell
+<#
+.SYNOPSIS
+    Création d'utilisateurs AD depuis un fichier CSV
+.DESCRIPTION
+    Ce script crée des comptes Active Directory à partir d'un CSV
+    Généré avec assistance IA (ChatGPT) le 2024-02-11
+    Revu et validé par [Votre nom]
+.PARAMETER CSVPath
+    Chemin du fichier CSV source
+.EXAMPLE
+    .\Create-ADUsers.ps1 -CSVPath "C:\Import\users.csv"
+#>
+```
+
+2. Versionner le script (Git, dossier partagé avec numéro de version)
+
+## Scripts / Commandes / Configurations
+
+### Exemple de script généré par IA
+
+```powershell
+<#
+.SYNOPSIS
+    Création d'utilisateurs AD depuis CSV avec logging
+.DESCRIPTION
+    Crée des comptes Active Directory à partir d'un fichier CSV
+    avec vérification d'existence et génération de logs
+.PARAMETER CSVPath
+    Chemin vers le fichier CSV (colonnes : Prenom, Nom, Service)
+.PARAMETER LogPath
+    Chemin du fichier de log (optionnel, par défaut : script_dir\log.txt)
+.EXAMPLE
+    .\Create-ADUsers.ps1 -CSVPath "C:\Import\users.csv"
+#>
+
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$CSVPath,
+
+    [Parameter(Mandatory=$false)]
+    [string]$LogPath = "$PSScriptRoot\creation_log.txt"
+)
+
+# Vérification du module ActiveDirectory
+if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
+    Write-Error "Le module ActiveDirectory n'est pas installé"
+    exit 1
+}
+
+Import-Module ActiveDirectory
+
+# Vérification de l'existence du fichier CSV
+if (-not (Test-Path $CSVPath)) {
+    Write-Error "Fichier CSV introuvable : $CSVPath"
+    exit 1
+}
+
+# Initialisation du log
+$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Add-Content -Path $LogPath -Value "=== Début de l'exécution : $timestamp ==="
+
+# Import du CSV
+try {
+    $users = Import-Csv -Path $CSVPath -Delimiter ";" -Encoding UTF8
+    Write-Host "[INFO] $($users.Count) utilisateurs trouvés dans le CSV" -ForegroundColor Green
+} catch {
+    Write-Error "Erreur lors de l'import du CSV : $_"
+    exit 1
+}
+
+# Compteurs
+$created = 0
+$skipped = 0
+$errors = 0
+
+# Traitement de chaque utilisateur
+foreach ($user in $users) {
+    # Génération du login (prenom.nom en minuscules)
+    $login = "$($user.Prenom).$($user.Nom)".ToLower()
+
+    # Vérification si l'utilisateur existe déjà
+    try {
+        $existingUser = Get-ADUser -Filter "SamAccountName -eq '$login'" -ErrorAction SilentlyContinue
+
+        if ($existingUser) {
+            Write-Host "[SKIP] L'utilisateur $login existe déjà" -ForegroundColor Yellow
+            Add-Content -Path $LogPath -Value "[SKIP] $login existe déjà"
+            $skipped++
+            continue
+        }
+
+        # Construction de l'OU cible
+        $ou = "OU=$($user.Service),DC=entreprise,DC=local"
+
+        # Création de l'utilisateur
+        $password = ConvertTo-SecureString "TempPass2024!" -AsPlainText -Force
+
+        New-ADUser `
+            -SamAccountName $login `
+            -UserPrincipalName "$login@entreprise.local" `
+            -Name "$($user.Prenom) $($user.Nom)" `
+            -GivenName $user.Prenom `
+            -Surname $user.Nom `
+            -DisplayName "$($user.Prenom) $($user.Nom)" `
+            -AccountPassword $password `
+            -Path $ou `
+            -Enabled $true `
+            -ChangePasswordAtLogon $true
+
+        Write-Host "[OK] Utilisateur $login créé avec succès" -ForegroundColor Green
+        Add-Content -Path $LogPath -Value "[OK] $login créé dans $ou"
+        $created++
+
+    } catch {
+        Write-Host "[ERROR] Échec création de $login : $_" -ForegroundColor Red
+        Add-Content -Path $LogPath -Value "[ERROR] $login - $_"
+        $errors++
+    }
+}
+
+# Résumé
+$timestamp_end = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+$summary = @"
+
+=== Résumé de l'exécution ===
+Fin : $timestamp_end
+Utilisateurs créés : $created
+Utilisateurs ignorés (déjà existants) : $skipped
+Erreurs : $errors
+"@
+
+Write-Host $summary -ForegroundColor Cyan
+Add-Content -Path $LogPath -Value $summary
+```
+
+### Fichier CSV d'exemple
+
+```csv
+Prenom;Nom;Service
+Jean;Dupont;IT
+Marie;Martin;Comptabilite
+Pierre;Durand;Commercial
+```
+
+### Commande d'exécution
+
+```powershell
+# Test avec simulation
+.\Create-ADUsers.ps1 -CSVPath "C:\Import\users.csv" -WhatIf
+
+# Exécution réelle
+.\Create-ADUsers.ps1 -CSVPath "C:\Import\users.csv" -LogPath "C:\Logs\ad_creation.log"
+```
+
+## Risques et limites
+
+### Risques de sécurité
+
+**Mots de passe en clair** : Le script contient un mot de passe temporaire en dur. En production, envisager :
+- Génération aléatoire de mots de passe
+- Stockage sécurisé (Azure Key Vault, credential manager)
+- Envoi par canal sécurisé (email chiffré)
+
+**Permissions excessives** : S'assurer que le compte exécutant le script a uniquement les permissions nécessaires (principe du moindre privilège).
+
+### Limites de l'IA
+
+**Code non optimisé** : L'IA peut générer du code fonctionnel mais pas nécessairement optimal en performance.
+
+**Commandes obsolètes** : L'IA peut suggérer des cmdlets dépréciées. Toujours vérifier avec la documentation officielle Microsoft.
+
+**Mauvaise gestion des erreurs** : Certains cas limites peuvent ne pas être gérés (caractères spéciaux dans les noms, OU inexistante).
+
+### Risques opérationnels
+
+**Création en masse** : Un script mal paramétré peut créer des centaines de comptes incorrects. Toujours tester sur un petit échantillon.
+
+**Logs insuffisants** : En cas d'erreur, des logs incomplets compliquent le débogage.
+
+## Bonnes pratiques
+
+### Avant génération
+
+1. Documenter précisément le besoin (cahier des charges même basique)
+2. Préparer des données de test réalistes
+3. Identifier l'environnement cible exact
+
+### Pendant la génération
+
+1. Être spécifique dans le prompt (version PowerShell, modules requis)
+2. Demander explicitement la gestion d'erreurs et les commentaires
+3. Itérer si nécessaire pour affiner le script
+
+### Après génération
+
+1. Relire entièrement le code généré
+2. Tester sur environnement de dev/test uniquement
+3. Vérifier les permissions requises
+4. Documenter l'origine du script et les tests effectués
+5. Versionner le script final
+
+### En production
+
+1. Exécuter d'abord sur un échantillon réduit
+2. Monitorer les logs en temps réel
+3. Prévoir une procédure de rollback si nécessaire
+4. Conserver les logs d'exécution pour audit
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise de PowerShell et Active Directory
+- Compréhension des bonnes pratiques (gestion d'erreurs, logging)
+- Capacité à tester et valider du code
+
+### Méthodologie
+
+- Approche structurée (besoin → génération → test → validation)
+- Souci de la qualité et de la sécurité
+- Documentation rigoureuse
+
+### Productivité
+
+- Capacité à automatiser rapidement des tâches répétitives
+- Gain de temps significatif tout en maintenant la qualité
+- Autonomie dans l'utilisation d'outils modernes (IA)
+
+### Vigilance professionnelle
+
+- Conscience des risques de sécurité
+- Validation systématique avant mise en production
+- Respect des procédures et de la conformité
+
+**Message au recruteur** : Ce guide démontre une approche professionnelle de l'automatisation, alliant rapidité (grâce à l'IA) et rigueur (tests, sécurité, documentation). Le candidat ne se contente pas de copier-coller du code, il comprend, adapte et sécurise.

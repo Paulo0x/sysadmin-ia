@@ -1,0 +1,687 @@
+# Sécurisation SSH assistée par IA
+
+## Objectif
+
+Sécuriser l'accès SSH sur des serveurs Linux en production en appliquant les bonnes pratiques de hardening, avec l'assistance de l'IA pour auditer la configuration, identifier les vulnérabilités et proposer des corrections.
+
+## Contexte entreprise
+
+Une PME gère 8 serveurs Linux en production (Ubuntu Server 22.04, Debian 11) hébergeant :
+- Applications web (Nginx)
+- Bases de données (PostgreSQL, MySQL)
+- Serveurs fichiers (Samba)
+- Serveurs de monitoring
+
+Ces serveurs sont accessibles en SSH pour l'administration. Configuration actuelle :
+- Port SSH par défaut (22)
+- Authentification par mot de passe activée
+- Root login autorisé
+- Aucune restriction IP
+- Pas de fail2ban
+
+Suite à une tentative d'intrusion détectée (logs auth montrant des tentatives de brute force), l'objectif est de sécuriser immédiatement tous les accès SSH.
+
+## Problème
+
+Sécuriser SSH manuellement implique :
+- Connaître toutes les bonnes pratiques de sécurité
+- Éditer manuellement /etc/ssh/sshd_config
+- Configurer des outils complémentaires (fail2ban, clés SSH)
+- Tester sans se verrouiller hors du serveur
+- Appliquer la configuration sur tous les serveurs
+
+**Temps estimé** : 1-2 heures par serveur (recherche + configuration + tests)
+
+**Risques** :
+- Oubli de directives importantes
+- Se verrouiller accidentellement (perte d'accès)
+- Configuration incohérente entre serveurs
+
+## Solution traditionnelle
+
+### Méthode manuelle
+
+1. Se connecter en SSH au serveur
+2. Sauvegarder la configuration actuelle
+```bash
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
+```
+3. Éditer /etc/ssh/sshd_config avec nano/vim
+4. Modifier les directives une par une
+5. Tester la configuration
+```bash
+sudo sshd -t
+```
+6. Redémarrer le service SSH
+7. Garder la session active et tester une nouvelle connexion
+8. Répéter sur tous les serveurs
+
+### Limites
+
+- Processus long et répétitif
+- Risque d'erreur de syntaxe
+- Difficulté à connaître toutes les directives importantes
+- Verrouillage accidentel possible
+
+## Apport de l'IA
+
+L'IA permet de :
+- Auditer une configuration SSH existante et identifier les failles
+- Générer une configuration SSH sécurisée complète
+- Expliquer chaque directive et son impact
+- Proposer des scripts d'automatisation pour déploiement multi-serveurs
+- Suggérer des outils complémentaires (fail2ban, 2FA)
+
+**Temps avec IA** : 30-45 minutes (audit + génération config + tests + déploiement)
+
+**Gain de productivité** : 60-70% par serveur
+
+## Mise en œuvre étape par étape
+
+### Étape 1 : Audit de la configuration actuelle
+
+Extraire la configuration SSH actuelle :
+
+```bash
+# Afficher la configuration active (sans commentaires)
+sudo grep -v "^#" /etc/ssh/sshd_config | grep -v "^$"
+```
+
+**Exemple de résultat** :
+```
+Port 22
+PermitRootLogin yes
+PasswordAuthentication yes
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+```
+
+### Étape 2 : Solliciter l'IA pour l'audit
+
+**Prompt structuré** :
+
+```
+Tu es un expert en sécurité Linux. Audite cette configuration SSH et identifie
+les vulnérabilités et les bonnes pratiques manquantes.
+
+**Contexte :**
+- Serveur : Ubuntu 22.04 LTS
+- Rôle : Serveur web (Nginx) exposé sur Internet
+- Utilisateurs admin : 3 personnes (comptes admin1, admin2, admin3)
+- Connexion depuis : Adresses IP fixes du bureau (203.0.113.0/24) et VPN
+
+**Configuration SSH actuelle :**
+```
+Port 22
+PermitRootLogin yes
+PasswordAuthentication yes
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+```
+
+**Questions :**
+1. Quelles sont les vulnérabilités critiques ?
+2. Quelles directives manquent pour une sécurité optimale ?
+3. Quelle configuration recommandes-tu ?
+4. Quels outils complémentaires installer (fail2ban, etc.) ?
+```
+
+### Étape 3 : Analyser la réponse de l'IA
+
+**Exemple de réponse attendue** :
+
+```
+## Audit de sécurité SSH
+
+### Vulnérabilités critiques identifiées
+
+#### 1. PermitRootLogin yes (CRITIQUE)
+
+**Risque :** Le compte root peut se connecter directement en SSH.
+C'est la cible prioritaire des attaques par force brute.
+
+**Impact :** Si le mot de passe root est compromis, l'attaquant a un contrôle
+total sur le serveur.
+
+**Recommandation :** Définir `PermitRootLogin no`
+
+#### 2. PasswordAuthentication yes (ÉLEVÉ)
+
+**Risque :** L'authentification par mot de passe est vulnérable aux attaques
+par force brute et par dictionnaire.
+
+**Impact :** Des milliers de tentatives automatisées peuvent être effectuées
+pour deviner les mots de passe.
+
+**Recommandation :** Désactiver et utiliser uniquement des clés SSH.
+
+#### 3. Port 22 (MOYEN)
+
+**Risque :** Le port SSH par défaut (22) est scanné massivement par les bots.
+
+**Impact :** Augmentation du bruit dans les logs et de la charge liée aux
+tentatives d'intrusion.
+
+**Recommandation :** Changer pour un port non-standard (ex: 2222, 22022).
+Note : Ce n'est pas une sécurité forte, mais réduit le bruit.
+
+#### 4. Absence de restrictions IP (ÉLEVÉ)
+
+**Risque :** Le serveur accepte des connexions SSH depuis n'importe quelle
+adresse IP.
+
+**Impact :** Surface d'attaque maximale.
+
+**Recommandation :** Restreindre les connexions aux IPs autorisées
+(bureau, VPN) via AllowUsers ou règles firewall.
+
+#### 5. X11Forwarding yes (FAIBLE)
+
+**Risque :** Le forwarding X11 peut être exploité pour des attaques de
+type hijacking de session.
+
+**Impact :** Si rarement utilisé, inutile de l'activer.
+
+**Recommandation :** Désactiver si non nécessaire.
+
+### Directives manquantes importantes
+
+- **MaxAuthTries** : Limiter le nombre de tentatives d'authentification
+- **LoginGraceTime** : Réduire le temps d'attente avant déconnexion
+- **ClientAliveInterval / ClientAliveCountMax** : Déconnecter les sessions inactives
+- **AllowUsers** : Restreindre les utilisateurs autorisés
+- **Protocol** : Forcer SSH2 uniquement (normalement par défaut)
+- **PermitEmptyPasswords** : S'assurer que c'est à "no"
+- **StrictModes** : Vérifier les permissions des fichiers (doit être yes)
+
+### Configuration SSH recommandée
+
+Voici une configuration sécurisée pour votre contexte :
+
+```
+# Port SSH modifié (moins de scans automatiques)
+Port 22022
+
+# Protocole SSH2 uniquement
+Protocol 2
+
+# Interdire le login root
+PermitRootLogin no
+
+# Désactiver l'authentification par mot de passe
+PasswordAuthentication no
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+
+# Authentification par clé uniquement
+ChallengeResponseAuthentication no
+UsePAM yes
+
+# Limiter les tentatives d'authentification
+MaxAuthTries 3
+LoginGraceTime 30s
+
+# Restreindre aux utilisateurs autorisés
+AllowUsers admin1 admin2 admin3
+
+# Déconnecter les sessions inactives (5 minutes)
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# Désactiver le forwarding X11 si non utilisé
+X11Forwarding no
+
+# Désactiver le TCP forwarding si non nécessaire
+AllowTcpForwarding no
+
+# Journalisation verbale pour audit
+LogLevel VERBOSE
+
+# Configuration SFTP
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# Autres paramètres de sécurité
+StrictModes yes
+IgnoreRhosts yes
+HostbasedAuthentication no
+```
+
+### Outils complémentaires recommandés
+
+#### 1. fail2ban
+
+**Fonction :** Bannit automatiquement les IPs effectuant trop de tentatives
+de connexion échouées.
+
+**Installation :**
+```bash
+sudo apt update
+sudo apt install fail2ban -y
+```
+
+**Configuration :**
+Créer `/etc/fail2ban/jail.local` :
+```ini
+[sshd]
+enabled = true
+port = 22022
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 3600
+findtime = 600
+```
+
+Redémarrer :
+```bash
+sudo systemctl restart fail2ban
+sudo fail2ban-client status sshd
+```
+
+#### 2. Authentification par clés SSH (obligatoire)
+
+**Avant de désactiver PasswordAuthentication**, s'assurer que les clés SSH
+sont configurées pour tous les administrateurs.
+
+**Génération de clé (sur le poste client) :**
+```bash
+ssh-keygen -t ed25519 -C "admin1@entreprise.com"
+```
+
+**Copie sur le serveur :**
+```bash
+ssh-copy-id -p 22022 admin1@serveur.entreprise.com
+```
+
+**Test de connexion :**
+```bash
+ssh -p 22022 admin1@serveur.entreprise.com
+```
+
+Si la connexion fonctionne sans mot de passe, c'est OK.
+
+#### 3. Restrictions firewall (ufw)
+
+Limiter l'accès SSH aux IPs autorisées :
+
+```bash
+# Autoriser SSH uniquement depuis le réseau bureau
+sudo ufw allow from 203.0.113.0/24 to any port 22022 proto tcp
+
+# Autoriser SSH depuis le VPN
+sudo ufw allow from 10.8.0.0/24 to any port 22022 proto tcp
+
+# Activer le firewall
+sudo ufw enable
+```
+
+### Procédure de déploiement sécurisée
+
+**IMPORTANT** : Ne jamais se verrouiller du serveur !
+
+1. **Garder une session SSH ouverte** pendant toute la procédure
+2. Tester chaque modification dans une nouvelle session
+3. En cas de problème, revenir en arrière depuis la session initiale
+
+**Étapes détaillées :**
+
+#### Étape 1 : Sauvegarder la configuration actuelle
+```bash
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d)
+```
+
+#### Étape 2 : Configurer les clés SSH pour tous les admins
+(Ne pas continuer tant que tous les admins n'ont pas leurs clés configurées)
+
+#### Étape 3 : Appliquer la nouvelle configuration
+
+Option A : Éditer manuellement
+```bash
+sudo nano /etc/ssh/sshd_config
+```
+
+Option B : Remplacer avec un script (voir section Scripts)
+
+#### Étape 4 : Tester la syntaxe
+```bash
+sudo sshd -t
+```
+
+Si des erreurs apparaissent, les corriger avant de continuer.
+
+#### Étape 5 : Redémarrer SSH (garder la session actuelle ouverte !)
+```bash
+sudo systemctl restart sshd
+```
+
+#### Étape 6 : Tester une NOUVELLE connexion
+Dans un nouveau terminal :
+```bash
+ssh -p 22022 admin1@serveur.entreprise.com
+```
+
+Si la connexion fonctionne, c'est OK. Sinon, revenir en arrière depuis la session initiale.
+
+#### Étape 7 : Installer fail2ban
+```bash
+sudo apt install fail2ban -y
+# Configurer comme indiqué ci-dessus
+```
+
+#### Étape 8 : Configurer le firewall
+```bash
+sudo ufw allow from 203.0.113.0/24 to any port 22022 proto tcp
+sudo ufw enable
+```
+
+#### Étape 9 : Vérifier les logs
+```bash
+sudo tail -f /var/log/auth.log
+```
+
+Tenter une connexion et vérifier que tout fonctionne.
+
+### Vérification finale
+
+Checklist :
+- [ ] Les clés SSH fonctionnent pour tous les admins
+- [ ] Le login root est impossible
+- [ ] L'authentification par mot de passe est désactivée
+- [ ] Le port SSH est modifié
+- [ ] fail2ban est actif et surveille SSH
+- [ ] Le firewall limite l'accès SSH aux IPs autorisées
+- [ ] Les sessions inactives se déconnectent automatiquement
+- [ ] Les logs auth.log montrent les connexions correctement
+```
+
+### Étape 4 : Appliquer la configuration
+
+Suivre la procédure recommandée par l'IA, étape par étape.
+
+**Règle d'or** : Toujours garder une session SSH ouverte pendant les modifications.
+
+### Étape 5 : Déploiement multi-serveurs
+
+Pour appliquer sur les 8 serveurs, demander à l'IA :
+
+```
+Génère un script Bash pour déployer une configuration SSH sécurisée
+sur plusieurs serveurs Linux.
+
+Le script doit :
+1. Lire une liste de serveurs depuis un fichier servers.txt
+2. Pour chaque serveur :
+   - Se connecter en SSH
+   - Sauvegarder l'ancienne configuration
+   - Déployer la nouvelle configuration sshd_config
+   - Tester la syntaxe (sshd -t)
+   - Redémarrer le service SSH
+   - Installer fail2ban si absent
+   - Configurer fail2ban
+3. Logger chaque opération
+4. Générer un rapport de déploiement
+
+Inclure gestion d'erreurs, mode dry-run, code commenté.
+```
+
+## Scripts / Commandes / Configurations
+
+### Script de sécurisation SSH automatisé
+
+```bash
+#!/bin/bash
+#
+# Script de sécurisation SSH
+# Applique les bonnes pratiques de hardening SSH
+# Usage: sudo ./secure-ssh.sh
+
+set -e
+
+echo "=== Sécurisation SSH ==="
+
+# Vérification des privilèges root
+if [[ $EUID -ne 0 ]]; then
+   echo "Ce script doit être exécuté en tant que root (sudo)"
+   exit 1
+fi
+
+# Variables
+SSH_CONFIG="/etc/ssh/sshd_config"
+BACKUP_CONFIG="/etc/ssh/sshd_config.backup.$(date +%Y%m%d_%H%M%S)"
+NEW_SSH_PORT=22022
+
+echo "[1/6] Sauvegarde de la configuration actuelle..."
+cp $SSH_CONFIG $BACKUP_CONFIG
+echo "✓ Sauvegarde créée : $BACKUP_CONFIG"
+
+echo "[2/6] Application de la nouvelle configuration..."
+
+# Désactiver root login
+sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' $SSH_CONFIG
+
+# Désactiver authentification par mot de passe
+sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' $SSH_CONFIG
+
+# Activer authentification par clé publique
+sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' $SSH_CONFIG
+
+# Désactiver mots de passe vides
+sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords no/' $SSH_CONFIG
+
+# Limiter les tentatives d'authentification
+sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 3/' $SSH_CONFIG || echo "MaxAuthTries 3" >> $SSH_CONFIG
+
+# Temps de grâce
+sed -i 's/^#*LoginGraceTime.*/LoginGraceTime 30s/' $SSH_CONFIG || echo "LoginGraceTime 30s" >> $SSH_CONFIG
+
+# Déconnexion des sessions inactives
+sed -i 's/^#*ClientAliveInterval.*/ClientAliveInterval 300/' $SSH_CONFIG || echo "ClientAliveInterval 300" >> $SSH_CONFIG
+sed -i 's/^#*ClientAliveCountMax.*/ClientAliveCountMax 2/' $SSH_CONFIG || echo "ClientAliveCountMax 2" >> $SSH_CONFIG
+
+# Désactiver X11 Forwarding
+sed -i 's/^#*X11Forwarding.*/X11Forwarding no/' $SSH_CONFIG
+
+# Log verbeux
+sed -i 's/^#*LogLevel.*/LogLevel VERBOSE/' $SSH_CONFIG || echo "LogLevel VERBOSE" >> $SSH_CONFIG
+
+echo "✓ Configuration appliquée"
+
+echo "[3/6] Test de la syntaxe..."
+if sshd -t; then
+    echo "✓ Syntaxe correcte"
+else
+    echo "✗ Erreur de syntaxe. Restauration de la sauvegarde..."
+    cp $BACKUP_CONFIG $SSH_CONFIG
+    exit 1
+fi
+
+echo "[4/6] Redémarrage du service SSH..."
+echo "⚠️  Assurez-vous d'avoir une session SSH ouverte en parallèle !"
+sleep 3
+
+systemctl restart sshd
+echo "✓ Service SSH redémarré"
+
+echo "[5/6] Installation de fail2ban..."
+if ! command -v fail2ban-client &> /dev/null; then
+    apt update
+    apt install fail2ban -y
+    echo "✓ fail2ban installé"
+else
+    echo "✓ fail2ban déjà installé"
+fi
+
+# Configuration fail2ban
+cat > /etc/fail2ban/jail.local <<EOF
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 3600
+findtime = 600
+EOF
+
+systemctl restart fail2ban
+echo "✓ fail2ban configuré et activé"
+
+echo "[6/6] Vérification finale..."
+systemctl status sshd --no-pager
+systemctl status fail2ban --no-pager
+
+echo ""
+echo "=== Sécurisation SSH terminée ==="
+echo "Configuration sauvegardée : $BACKUP_CONFIG"
+echo ""
+echo "⚠️  IMPORTANT :"
+echo "1. Testez une NOUVELLE connexion SSH avant de fermer celle-ci"
+echo "2. Assurez-vous que les clés SSH sont configurées pour tous les admins"
+echo "3. Si vous êtes verrouillé, utilisez la console KVM/IPMI pour restaurer"
+echo ""
+echo "Commande de test :"
+echo "  ssh -p $NEW_SSH_PORT user@$(hostname -I | awk '{print $1}')"
+```
+
+### Configuration fail2ban complète
+
+```bash
+# /etc/fail2ban/jail.local
+
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+
+[sshd]
+enabled = true
+port = 22022
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+
+[sshd-ddos]
+enabled = true
+port = 22022
+filter = sshd-ddos
+logpath = /var/log/auth.log
+maxretry = 2
+```
+
+### Commandes de vérification
+
+```bash
+# Vérifier les connexions SSH actives
+who
+
+# Afficher les tentatives de connexion échouées
+sudo grep "Failed password" /var/log/auth.log | tail -20
+
+# Vérifier le statut de fail2ban
+sudo fail2ban-client status sshd
+
+# Lister les IPs bannies
+sudo fail2ban-client status sshd | grep "Banned IP"
+
+# Débannir une IP
+sudo fail2ban-client set sshd unbanip 203.0.113.50
+
+# Tester la configuration SSH
+sudo sshd -t
+
+# Afficher la configuration SSH active (sans commentaires)
+sudo grep -v "^#" /etc/ssh/sshd_config | grep -v "^$"
+```
+
+## Risques et limites
+
+### Risques de verrouillage
+
+**Se verrouiller hors du serveur** : Si la configuration est incorrecte ou que les clés SSH ne fonctionnent pas, l'accès peut être perdu.
+
+**Prévention** :
+- Toujours garder une session SSH ouverte pendant les modifications
+- Tester une nouvelle connexion avant de fermer la session initiale
+- Avoir un accès console de secours (KVM, IPMI, console VPS)
+
+### Limites de l'IA
+
+**Configuration spécifique** : L'IA génère une configuration standard. Elle peut ne pas couvrir des besoins spécifiques (jump hosts, tunneling).
+
+**Compatibilité** : Certaines directives peuvent différer selon la version d'OpenSSH. Toujours vérifier avec `man sshd_config`.
+
+### Risques opérationnels
+
+**Impact sur les scripts automatisés** : Si des scripts utilisent SSH avec authentification par mot de passe, ils cesseront de fonctionner.
+
+**Oubli d'administrateurs** : Si un administrateur n'a pas configuré ses clés SSH avant le déploiement, il sera verrouillé.
+
+## Bonnes pratiques
+
+### Avant déploiement
+
+1. Auditer la configuration actuelle
+2. Documenter les changements prévus
+3. S'assurer que tous les admins ont des clés SSH fonctionnelles
+4. Planifier un créneau de maintenance
+5. Prévoir un accès console de secours
+
+### Pendant le déploiement
+
+1. Toujours garder une session SSH ouverte
+2. Tester la syntaxe avant de redémarrer SSH (`sshd -t`)
+3. Tester une nouvelle connexion avant de valider
+4. Vérifier les logs (`/var/log/auth.log`)
+5. Documenter chaque étape
+
+### Après déploiement
+
+1. Vérifier que tous les admins peuvent se connecter
+2. Monitorer les logs pour détecter des tentatives d'intrusion
+3. Vérifier que fail2ban fonctionne (`fail2ban-client status`)
+4. Documenter la configuration finale
+5. Former l'équipe aux nouveaux paramètres (port, clés SSH)
+
+### Maintenance continue
+
+1. Réviser la configuration tous les 6 mois
+2. Mettre à jour OpenSSH régulièrement
+3. Auditer les logs auth.log hebdomadairement
+4. Renouveler les clés SSH annuellement
+5. Tester les restaurations depuis sauvegarde
+
+## Ce que cela démontre à un recruteur
+
+### Compétences techniques
+
+- Maîtrise de la sécurité Linux et SSH
+- Connaissance des bonnes pratiques de hardening
+- Capacité à auditer et corriger des configurations
+
+### Approche méthodique
+
+- Audit avant action
+- Procédure sécurisée (tests, sauvegardes)
+- Déploiement progressif avec validation
+
+### Sens de la sécurité
+
+- Identification proactive des vulnérabilités
+- Application du principe de défense en profondeur (SSH + fail2ban + firewall)
+- Conscience des risques de verrouillage
+
+### Automatisation
+
+- Scripts de déploiement pour gain de temps
+- Utilisation de l'IA pour accélérer sans sacrifier la qualité
+- Documentation complète pour reproductibilité
+
+**Message au recruteur** : Ce guide démontre un administrateur Linux capable de sécuriser efficacement des serveurs en production en appliquant les bonnes pratiques de hardening. L'utilisation de l'IA accélère l'audit et la génération de configurations, mais le professionnel valide, teste et documente rigoureusement chaque étape, garantissant la sécurité sans risque opérationnel.

@@ -1,0 +1,547 @@
+# Mise en place stratégie de sauvegarde 3-2-1
+
+## Contexte du projet
+
+**Entreprise** : Cabinet d'architectes de 25 employés
+
+**Situation initiale** :
+- Aucune sauvegarde régulière des données
+- Fichiers CAO/DAO critiques (projets clients) sur un seul serveur
+- Dernière tentative de restauration : échec (backup corrompu)
+- Volume de données : 2 TB (dessins techniques, photos chantiers, documents)
+
+**Déclencheur** : Panne disque dur avec perte de 3 jours de travail sur un projet majeur (coût : 15 000€ de retard)
+
+**Objectif** : Mettre en place une stratégie de sauvegarde fiable suivant la règle 3-2-1 pour garantir la continuité d'activité.
+
+**Budget** : 5 000€ annuel
+
+**Mon rôle** : Consultant IT externe, mission de 2 semaines
+
+## Problème initial
+
+**Risques identifiés** :
+- Perte de données critique = faillite du cabinet (projets clients irréc upérables)
+- Aucun plan de reprise d'activité (PRA)
+- Dépendance totale à un seul serveur
+- Backups manuels irréguliers et non testés
+
+**Impact potentiel** :
+- Financier : Perte de projets = 50-200k€
+- Réputation : Perte de clients
+- Juridique : Responsabilité contractuelle
+- Opérationnel : Arrêt complet de l'activité
+
+## Solution mise en œuvre : Règle 3-2-1
+
+### Principe de la règle 3-2-1
+
+- **3 copies** des données : Production + 2 backups
+- **2 supports différents** : Disque local + Cloud (ou bande)
+- **1 copie hors-site** : Protection contre incendie/vol
+
+## Architecture de sauvegarde déployée
+
+### Composants
+
+**Serveur de production** : Windows Server 2019 (SRV-FILES-01)
+- 2 TB de données (fichiers CAO, photos, documents)
+- RAID 1 pour protection matérielle
+
+**Backup local (Copie 1)** : NAS Synology DS920+ (4 TB)
+- Connecté au réseau local
+- Sauvegardes incrémentielles quotidiennes
+
+**Backup USB rotation (Copie 2)** : 4 disques USB 4 TB
+- Rotation hebdomadaire (1 disque par semaine)
+- Stockés dans un coffre-fort physique dans un autre bâtiment
+
+**Backup cloud (Copie 3 - hors-site)** : Backblaze B2
+- Sauvegarde cloud chiffrée
+- Synchronisation quotidienne des fichiers critiques
+
+## Mise en œuvre étape par étape
+
+### Phase 1 : Audit et planification (Jour 1-2)
+
+#### Utilisation de l'IA pour l'audit
+
+**Prompt** :
+
+```
+Analyse cette infrastructure et propose une stratégie de sauvegarde 3-2-1.
+
+**Contexte :**
+- Cabinet d'architectes, 25 employés
+- Données critiques : 2 TB (fichiers CAO/DAO, photos, documents)
+- Serveur Windows Server 2019
+- Budget : 5 000€/an
+- Contraintes : Simplicité (pas d'admin IT interne), fiabilité maximale
+
+**Questions :**
+1. Quelle solution matérielle pour backup local (NAS, serveur dédié) ?
+2. Quelle solution cloud (Backblaze, AWS S3, Azure) ?
+3. Quel logiciel de sauvegarde (Veeam, Duplicati, Acronis) ?
+4. Quelle fréquence de sauvegarde recommandée ?
+5. Comment tester les restaurations régulièrement ?
+```
+
+**Recommandations de l'IA** :
+
+```
+## Stratégie de sauvegarde 3-2-1 recommandée
+
+### Architecture proposée
+
+**Copie 1 : NAS local (Synology DS920+)**
+- Coût : 500€ + 4x200€ (disques 4 TB) = 1 300€
+- Avantages : Interface simple, backup automatique, RAID intégré
+- Sauvegarde : Quotidienne incrémentielle (23h00)
+
+**Copie 2 : Disques USB rotation**
+- Coût : 4x100€ (disques 4 TB) = 400€
+- Rotation : 1 disque par semaine (4 semaines)
+- Stockage : Coffre-fort dans un autre bâtiment
+
+**Copie 3 : Backblaze B2 (cloud)**
+- Coût : 0.005$/GB/mois = ~10$/mois pour 2 TB = 120€/an
+- Avantages : Illimité, chiffrement, hors-site
+- Sauvegarde : Quotidienne (fichiers critiques uniquement : 500 GB)
+
+**Logiciel recommandé : Duplicati**
+- Gratuit et open-source
+- Supporte cloud (B2, S3, Azure)
+- Chiffrement AES-256
+- Interface web simple
+
+**Total coût initial** : 1 700€
+**Total coût annuel** : 120€ (cloud) + 100€ (renouvellement disques) = 220€/an
+
+### Planning de sauvegarde
+
+| Quoi | Quand | Où | Rétention |
+|------|-------|-----|-----------|
+| Backup complet | Dimanche 23h | NAS Synology | 4 semaines |
+| Backup incrémentiel | Lundi-Samedi 23h | NAS Synology | 7 jours |
+| Backup USB | Vendredi 18h | Disque USB rotation | 4 semaines |
+| Backup cloud | Quotidien 01h | Backblaze B2 | 90 jours |
+
+### Tests de restauration
+
+- **Mensuel** : Restaurer 5 fichiers aléatoires depuis NAS
+- **Trimestriel** : Restaurer 1 projet complet depuis USB
+- **Semestriel** : Restaurer 1 projet complet depuis cloud
+
+### Procédures d'urgence
+
+**Scénario 1 : Panne serveur (disque HS)**
+→ Restauration depuis NAS : 2-4 heures
+
+**Scénario 2 : Incendie/vol (serveur + NAS détruits)**
+→ Restauration depuis cloud : 1-2 jours (téléchargement)
+
+**Scénario 3 : Ransomware (serveur et NAS chiffrés)**
+→ Restauration depuis USB hors-ligne : 4-6 heures
+```
+
+### Phase 2 : Acquisition matériel (Jour 3-4)
+
+**Commande passée** :
+- 1x Synology DS920+ (500€)
+- 4x Disques WD Red 4 TB pour NAS (800€)
+- 4x Disques USB externes 4 TB (400€)
+- Total : 1 700€
+
+**Livraison et installation** : 3 jours
+
+### Phase 3 : Configuration NAS Synology (Jour 5-6)
+
+#### Installation physique
+
+1. Installer les 4 disques dans le NAS
+2. Connecter au réseau (Ethernet)
+3. Configuration initiale via interface web (http://synology_ip:5000)
+
+#### Configuration du RAID
+
+```
+Type : SHR (Synology Hybrid RAID)
+Protection : 1 disque peut tomber en panne
+Capacité utilisable : 10.9 TB (sur 16 TB bruts)
+```
+
+#### Configuration des sauvegardes
+
+**Hyper Backup (application Synology)** :
+
+1. Créer une tâche de sauvegarde
+2. Source : \\SRV-FILES-01\Partages
+3. Destination : Volume1/Backups
+4. Planning :
+   - Complet : Dimanche 23h00
+   - Incrémentiel : Lundi-Samedi 23h00
+5. Rétention : 4 semaines (versions complètes)
+6. Activer les notifications email
+
+#### Configuration des alertes
+
+```
+Email de notification :
+- admin@cabinet.com
+- Alertes activées : Échec backup, disque défaillant, espace faible
+```
+
+### Phase 4 : Configuration backup USB rotation (Jour 7)
+
+#### Script PowerShell de sauvegarde USB
+
+**Utilisation de l'IA pour générer le script** :
+
+**Prompt** :
+
+```
+Génère un script PowerShell pour sauvegarder des données vers un disque USB.
+
+**Contexte :**
+- Source : \\SRV-FILES-01\Partages (2 TB)
+- Destination : Disque USB externe (lettre variable)
+- Mode : Sauvegarde complète chaque semaine
+- Identifier le disque USB par label "BACKUP_SEMAINE_X" (X=1,2,3,4)
+- Logging complet
+- Vérification de l'espace disponible avant de commencer
+- Email de notification en fin (succès ou échec)
+
+Format : Script PowerShell complet, commenté
+```
+
+**Script généré** :
+
+```powershell
+<#
+.SYNOPSIS
+    Sauvegarde vers disque USB avec rotation hebdomadaire
+.DESCRIPTION
+    Sauvegarde complète des fichiers vers un disque USB externe
+    avec rotation sur 4 semaines
+.EXAMPLE
+    .\Backup-ToUSB.ps1
+#>
+
+[CmdletBinding()]
+param(
+    [string]$SourcePath = "\\SRV-FILES-01\Partages",
+    [string]$LogPath = "C:\Logs\Backup_USB_$(Get-Date -Format 'yyyyMMdd').log",
+    [string]$EmailTo = "admin@cabinet.com"
+)
+
+function Write-Log {
+    param([string]$Message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$timestamp - $Message" | Tee-Object -FilePath $LogPath -Append | Write-Host
+}
+
+Write-Log "=== Début sauvegarde USB ==="
+
+# Identifier le disque USB par label
+$usbDrives = Get-Volume | Where-Object { $_.FileSystemLabel -like "BACKUP_SEMAINE_*" -and $_.DriveType -eq "Removable" }
+
+if ($usbDrives.Count -eq 0) {
+    Write-Log "ERREUR : Aucun disque USB trouvé avec label BACKUP_SEMAINE_X"
+    Send-MailMessage -To $EmailTo -From "backup@cabinet.com" -Subject "Échec backup USB" -Body "Disque USB non détecté" -SmtpServer "smtp.office365.com"
+    exit 1
+}
+
+$usbDrive = $usbDrives[0]
+$destPath = "$($usbDrive.DriveLetter):\Backup_$(Get-Date -Format 'yyyyMMdd')"
+
+Write-Log "Disque USB détecté : $($usbDrive.FileSystemLabel) ($($usbDrive.DriveLetter):)"
+
+# Vérifier l'espace disponible
+$sourceSize = (Get-ChildItem $SourcePath -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1GB
+$freeSpace = ($usbDrive.SizeRemaining / 1GB)
+
+Write-Log "Espace requis : $([math]::Round($sourceSize, 2)) GB"
+Write-Log "Espace disponible : $([math]::Round($freeSpace, 2)) GB"
+
+if ($freeSpace -lt ($sourceSize * 1.1)) {
+    Write-Log "ERREUR : Espace insuffisant sur le disque USB"
+    exit 1
+}
+
+# Créer le dossier de destination
+New-Item -Path $destPath -ItemType Directory -Force | Out-Null
+
+# Sauvegarde avec robocopy
+Write-Log "Début de la copie..."
+
+$startTime = Get-Date
+
+robocopy $SourcePath $destPath /E /ZB /COPY:DAT /R:3 /W:5 /MT:8 /LOG+:$LogPath /NP /TEE
+
+$endTime = Get-Date
+$duration = $endTime - $startTime
+
+Write-Log "Copie terminée en $($duration.TotalMinutes) minutes"
+
+# Vérification
+$destFileCount = (Get-ChildItem $destPath -Recurse -File).Count
+Write-Log "Fichiers sauvegardés : $destFileCount"
+
+# Email de notification
+$emailBody = @"
+Sauvegarde USB terminée avec succès.
+
+Disque : $($usbDrive.FileSystemLabel)
+Durée : $([math]::Round($duration.TotalMinutes, 2)) minutes
+Fichiers : $destFileCount
+Destination : $destPath
+
+Vous pouvez débrancher le disque USB en toute sécurité.
+"@
+
+Send-MailMessage -To $EmailTo -From "backup@cabinet.com" -Subject "✓ Backup USB réussi" -Body $emailBody -SmtpServer "smtp.office365.com"
+
+Write-Log "=== Fin sauvegarde USB ==="
+```
+
+#### Procédure hebdomadaire
+
+**Chaque vendredi 18h** :
+1. Brancher le disque USB de la semaine (ex: BACKUP_SEMAINE_1)
+2. Exécuter le script PowerShell
+3. Attendre notification email (30-60 min)
+4. Débrancher le disque et le ranger dans le coffre-fort
+5. La semaine suivante, utiliser BACKUP_SEMAINE_2, etc.
+
+### Phase 5 : Configuration backup cloud (Jour 8-9)
+
+#### Installation Duplicati
+
+```bash
+# Télécharger Duplicati depuis duplicati.com
+# Installer sur SRV-FILES-01
+# Accéder via http://localhost:8200
+```
+
+#### Configuration Backblaze B2
+
+1. Créer compte Backblaze B2
+2. Créer un bucket "cabinet-backup"
+3. Générer Application Key (ID + Key)
+
+#### Configuration Duplicati
+
+**Tâche de sauvegarde** :
+- **Source** : C:\Partages\Projets (fichiers CAO critiques seulement : 500 GB)
+- **Destination** : Backblaze B2 (bucket cabinet-backup)
+- **Chiffrement** : AES-256 (mot de passe fort stocké en lieu sûr)
+- **Planning** : Quotidien à 01h00
+- **Rétention** : 90 jours (fichiers supprimés conservés 90 jours)
+- **Bande passante** : 5 Mbps max (ne pas saturer la connexion)
+
+**Notifications** :
+- Email en cas d'échec uniquement
+- Rapport mensuel (synthèse)
+
+### Phase 6 : Tests de restauration (Jour 10)
+
+#### Test 1 : Restauration depuis NAS
+
+```powershell
+# Simuler la perte d'un fichier
+Remove-Item "\\SRV-FILES-01\Partages\Projets\Projet_Test\plan.dwg"
+
+# Restaurer depuis le NAS (via Hyper Backup)
+# Interface web Synology > Hyper Backup > Restaurer
+# Sélectionner le fichier > Restaurer
+
+# Vérifier l'intégrité
+Test-Path "\\SRV-FILES-01\Partages\Projets\Projet_Test\plan.dwg"
+# Doit retourner True
+```
+
+**Résultat** : Fichier restauré en 2 minutes ✓
+
+#### Test 2 : Restauration depuis USB
+
+```powershell
+# Brancher le disque USB de la semaine dernière
+# Copier manuellement le fichier depuis le disque
+Copy-Item "E:\Backup_20240204\Projets\Projet_Test\plan.dwg" -Destination "\\SRV-FILES-01\Partages\Projets\Projet_Test\"
+```
+
+**Résultat** : Fichier restauré en 5 minutes ✓
+
+#### Test 3 : Restauration depuis cloud
+
+```powershell
+# Via Duplicati > Restore
+# Sélectionner le fichier à restaurer
+# Saisir le mot de passe de chiffrement
+# Télécharger (débit : ~10 Mbps)
+```
+
+**Résultat** : Fichier 50 MB restauré en 1 minute ✓
+
+### Phase 7 : Documentation et formation (Jour 11-12)
+
+#### Documentation créée
+
+**Guide procédures backups** (10 pages) :
+1. Architecture de sauvegarde
+2. Procédure backup USB hebdomadaire (pas-à-pas avec photos)
+3. Procédure restauration (3 scénarios)
+4. Contacts support (Synology, Backblaze, consultant IT)
+5. Troubleshooting courant
+
+**Checklist mensuelle** :
+- [ ] Vérifier les emails de notification backup (aucun échec)
+- [ ] Tester une restauration depuis NAS (5 fichiers aléatoires)
+- [ ] Vérifier l'espace disque NAS (doit rester > 20%)
+- [ ] Vérifier que les 4 disques USB existent et sont accessibles
+
+#### Formation des utilisateurs
+
+**Session 1h avec responsable IT interne** :
+1. Présentation de l'architecture 3-2-1
+2. Démonstration backup USB (vendredi)
+3. Démonstration restauration simple (1 fichier)
+4. Remise de la documentation
+5. Test pratique : restaurer un fichier supprimé
+
+## Résultats obtenus
+
+### Indicateurs techniques
+
+- **3 copies** des données : Production + NAS + USB + Cloud ✓
+- **2 supports** : Disque (NAS+USB) + Cloud ✓
+- **1 copie hors-site** : Cloud Backblaze ✓
+- **RTO (Recovery Time Objective)** : 2-4h (depuis NAS), 1-2 jours (depuis cloud)
+- **RPO (Recovery Point Objective)** : 24h maximum (backup quotidien)
+- **Taux de réussite backups** : 100% (monitoring quotidien)
+
+### Indicateurs business
+
+- **Coût initial** : 1 700€ (vs budget 5 000€)
+- **Coût annuel** : 220€
+- **Temps admin** : 15 min/semaine (backup USB + vérification)
+- **Risque de perte de données** : Quasi nul (quadruple redondance)
+- **Conformité RGPD** : Conforme (données chiffrées en cloud)
+
+### Tests de restauration (6 mois post-déploiement)
+
+| Test | Date | Source | Fichiers | Durée | Succès |
+|------|------|--------|----------|-------|--------|
+| Restauration fichier | Mensuel | NAS | 5 | 5 min | 6/6 ✓ |
+| Restauration projet | Trim. | USB | 150 | 30 min | 2/2 ✓ |
+| Restauration complète | Sem. | Cloud | 500 GB | 8h | 1/1 ✓ |
+
+### Incidents évités
+
+**Mois 3** : Panne disque dur sur le serveur (RAID 1 a tenu, mais 1 disque HS)
+→ **Aucune perte de données**, restauration non nécessaire, disque remplacé.
+
+**Mois 5** : Utilisateur supprime accidentellement un dossier complet (50 fichiers)
+→ **Restauration depuis NAS en 10 minutes**, aucune perte.
+
+## Apport de l'IA dans le projet
+
+### Planification (gain 60%)
+
+- Recommandation matériel adapté au budget et aux besoins
+- Architecture 3-2-1 expliquée et justifiée
+- Planning de sauvegarde optimisé
+
+### Scripts d'automatisation (gain 80%)
+
+- Script PowerShell backup USB généré en 10 min (vs 2h manuellement)
+- Gestion d'erreurs, logging, notifications inclus automatiquement
+
+### Documentation (gain 70%)
+
+- Guide utilisateur structuré généré en 30 min
+- Procédures claires et illustrées
+
+**Temps total économisé : ~12 heures** sur le projet (équivalent 1,5 jours)
+
+## Outils utilisés
+
+### Matériel
+
+- Synology DS920+ (NAS)
+- Disques WD Red 4 TB (NAS)
+- Disques USB externes 4 TB (rotation)
+
+### Logiciels
+
+- Hyper Backup (Synology)
+- Duplicati (backup cloud)
+- PowerShell (scripts automatisation)
+- Backblaze B2 (stockage cloud)
+
+### IA
+
+- ChatGPT (recommandations architecture, scripts)
+- Claude (documentation, procédures)
+
+## Compétences démontrées
+
+### Techniques
+
+- Architecture de sauvegarde (règle 3-2-1)
+- Configuration NAS Synology
+- Scripting PowerShell
+- Intégration cloud (Backblaze B2)
+- Tests de restauration
+
+### Gestion de projet
+
+- Audit des besoins et des risques
+- Recommandations budgétaires
+- Planning de déploiement
+- Formation utilisateurs
+
+### Sens des affaires
+
+- Compréhension des enjeux métier (perte de données = faillite)
+- Solution adaptée au budget limité
+- ROI mesurable (1 700€ pour protéger 2 TB de données critiques)
+
+## Leçons apprises
+
+### Ce qui a bien fonctionné
+
+1. **Règle 3-2-1 simple et efficace** : Redondance maximale avec budget minimal
+2. **NAS Synology** : Interface simple, idéal pour PME sans admin IT permanent
+3. **Backup USB rotation** : Protection ransomware (hors-ligne)
+4. **Tests réguliers** : Confiance dans le système de sauvegarde
+
+### Ce qui aurait pu être amélioré
+
+1. **Formation plus approfondie** : Certains utilisateurs ne savent toujours pas restaurer un fichier eux-mêmes
+2. **Monitoring centralisé** : Dashboard unique pour voir l'état de tous les backups
+3. **Automatisation backup USB** : Actuellement manuel (brancher/débrancher)
+
+### Recommandations pour un prochain déploiement
+
+1. Prévoir 2-3 sessions de formation (au lieu d'une)
+2. Mettre en place un dashboard de monitoring (Grafana + SNMP)
+3. Envisager un robot de sauvegarde pour USB (coût ~500€)
+
+## Ce que cela démontre à un recruteur
+
+**Expertise sauvegarde et PRA** : Capacité à mettre en place une stratégie de sauvegarde robuste suivant les standards de l'industrie
+
+**Approche pragmatique** : Solution adaptée au contexte (PME, budget limité, pas d'admin IT)
+
+**Utilisation stratégique de l'IA** : Accélération de la planification, des scripts et de la documentation (gain 12h)
+
+**Orientation business** : Compréhension de l'impact métier (perte données = faillite) et solution proportionnée
+
+**ROI tangible** : 1 700€ d'investissement pour protéger 2 TB de données critiques (vs 50-200k€ de risque)
+
+**Conformité et rigueur** : Tests de restauration réguliers, documentation complète, formation utilisateurs
+
+---
+
+**Message au recruteur** : Ce projet démontre une capacité complète à analyser les risques métier, concevoir une architecture de sauvegarde robuste et la déployer efficacement avec un budget limité. L'utilisation de l'IA a accéléré le projet (gain 12h) sans compromettre la qualité. Le résultat : une PME protégée contre la perte de données avec une solution simple, fiable et testée régulièrement.

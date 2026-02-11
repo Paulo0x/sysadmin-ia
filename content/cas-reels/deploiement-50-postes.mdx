@@ -1,0 +1,572 @@
+# Déploiement de 50 postes utilisateurs
+
+## Contexte du projet
+
+**Entreprise** : Cabinet comptable de 50 employés
+
+**Situation** : Déménagement vers de nouveaux locaux + renouvellement complet du parc informatique
+
+**Matériel** :
+- 50 PC Dell OptiPlex 7010 (Windows 11 Pro)
+- 2 serveurs Dell PowerEdge (Active Directory + File Server)
+- Switch HP 48 ports + firewall pfSense
+- Imprimantes réseau (5 multifonctions Xerox)
+
+**Applications métier** :
+- Suite Office 365 E3
+- Logiciel comptable (Sage 100)
+- CRM (HubSpot en ligne)
+- Adobe Acrobat Pro
+
+**Contraintes** :
+- Déploiement en 2 semaines (pendant fermeture estivale)
+- Formation minimale (utilisateurs occupés)
+- Budget serré : 80 000€ tout compris
+- Reprise des données depuis anciens PC
+
+**Mon rôle** : Technicien IT en charge du déploiement complet
+
+## Planification du projet (Semaine -2)
+
+### Utilisation de l'IA pour la planification
+
+**Prompt** :
+
+```
+Génère un planning détaillé pour déployer 50 postes Windows 11
+dans un cabinet comptable.
+
+Contexte :
+- 50 PC neufs à configurer
+- Active Directory existant (migration depuis ancien domaine)
+- Applications : Office 365, Sage 100, Adobe Pro
+- Délai : 2 semaines (10 jours ouvrés)
+- Équipe : 1 technicien principal + 1 stagiaire
+
+Phases à inclure :
+1. Préparation infrastructure (serveurs, réseau)
+2. Préparation image Windows 11 (master)
+3. Déploiement OS sur les 50 PC
+4. Installation applications
+5. Configuration utilisateurs (comptes, permissions)
+6. Migration données depuis anciens PC
+7. Tests et validation
+8. Formation utilisateurs
+
+Pour chaque phase : tâches, durée, responsable, dépendances
+```
+
+**Planning généré (adapté)** :
+
+#### Semaine 1 : Préparation infrastructure et master
+
+**Jour 1-2 : Infrastructure serveurs**
+- Installation Windows Server 2022 (AD DS, DNS, DHCP)
+- Configuration Active Directory
+- Création des OU, groupes, GPO
+- Installation serveur fichiers + partages
+- Durée : 16h
+
+**Jour 3-4 : Création image master Windows 11**
+- Installation Windows 11 Pro sur PC référence
+- Sysprep + capture image WIM
+- Configuration MDT (Microsoft Deployment Toolkit)
+- Tests de déploiement sur 3 PC pilotes
+- Durée : 16h
+
+**Jour 5 : Réseau et câblage**
+- Installation switch + configuration VLANs
+- Câblage bureaux (50 postes + 5 imprimantes)
+- Configuration pfSense (firewall, règles)
+- Tests connectivité
+- Durée : 8h
+
+#### Semaine 2 : Déploiement et migration
+
+**Jour 6-7 : Déploiement OS (50 PC)**
+- Déploiement par lot de 10 PC (PXE boot)
+- Join domaine automatique
+- Installation pilotes
+- Durée : 16h
+
+**Jour 8 : Installation applications**
+- Déploiement Office 365 (via GPO)
+- Installation Sage 100 (script automatisé)
+- Installation Adobe Acrobat Pro
+- Durée : 8h
+
+**Jour 9 : Migration données**
+- Copie données utilisateurs depuis anciens PC vers serveur
+- Attribution permissions
+- Tests accès
+- Durée : 8h
+
+**Jour 10 : Tests et formation**
+- Tests finaux (10 utilisateurs pilotes)
+- Formation utilisateurs (2 sessions)
+- Documentation
+- Durée : 8h
+
+**Total : 80 heures sur 10 jours**
+
+## Phase 1 : Préparation infrastructure (Jour 1-2)
+
+### Installation Active Directory
+
+**Configuration choisie** :
+- Domaine : `cabinet.local`
+- Structure OU :
+  - Utilisateurs/
+    - Comptabilite/
+    - Audit/
+    - Direction/
+    - Administration/
+  - Ordinateurs/
+    - Postes/
+    - Serveurs/
+  - Groupes/
+
+**Script de création structure OU** :
+
+```powershell
+# Création OUs
+$ous = @(
+    "OU=Utilisateurs,DC=cabinet,DC=local",
+    "OU=Comptabilite,OU=Utilisateurs,DC=cabinet,DC=local",
+    "OU=Audit,OU=Utilisateurs,DC=cabinet,DC=local",
+    "OU=Direction,OU=Utilisateurs,DC=cabinet,DC=local",
+    "OU=Administration,OU=Utilisateurs,DC=cabinet,DC=local",
+    "OU=Ordinateurs,DC=cabinet,DC=local",
+    "OU=Postes,OU=Ordinateurs,DC=cabinet,DC=local",
+    "OU=Serveurs,OU=Ordinateurs,DC=cabinet,DC=local",
+    "OU=Groupes,DC=cabinet,DC=local"
+)
+
+foreach ($ou in $ous) {
+    New-ADOrganizationalUnit -Path $ou.Split(',', 2)[1] -Name $ou.Split('=')[1].Split(',')[0]
+}
+```
+
+### Création des utilisateurs en masse
+
+**Utilisation de l'IA pour générer le script** :
+
+**Prompt** :
+```
+Génère un script PowerShell pour créer 50 utilisateurs AD depuis un CSV.
+
+Fichier CSV : Prenom,Nom,Service,Manager
+Le script doit :
+- Générer login : prenom.nom
+- Créer dans l'OU correspondant au service
+- Générer mot de passe temporaire complexe
+- Forcer changement à la connexion
+- Attribuer aux groupes selon le service
+- Logger les opérations
+```
+
+**Script généré (utilisé)** : Voir section Helpdesk "Génération script PowerShell"
+
+**Résultat** : 50 comptes créés en 15 minutes ✓
+
+## Phase 2 : Création image master (Jour 3-4)
+
+### Installation Windows 11 sur PC référence
+
+1. Installation Windows 11 Pro (version 23H2)
+2. Activation avec clé en volume (KMS)
+3. Installation des mises à jour Windows Update
+4. Installation des pilotes (Dell Command Update)
+
+### Personnalisation de l'image
+
+**Applications pré-installées** :
+- Office 365 (via Click-to-Run)
+- Adobe Acrobat Reader
+- 7-Zip
+- Google Chrome
+- TeamViewer (support à distance)
+
+**Configuration système** :
+- Désactivation de Cortana
+- Configuration du fuseau horaire (Paris)
+- Fond d'écran corporate
+- Raccourcis bureau (Sage 100, Outlook)
+
+**GPO pré-configurées** :
+- Politique de mots de passe
+- Verrouillage automatique après 10 min d'inactivité
+- Redirection des dossiers (Bureau, Documents → serveur)
+- Mapping lecteurs réseau automatique
+
+### Sysprep et capture de l'image
+
+```cmd
+# Exécution de Sysprep
+C:\Windows\System32\Sysprep\sysprep.exe /oobe /generalize /shutdown
+```
+
+Une fois le PC éteint, boot sur WinPE et capture :
+
+```cmd
+# Capture de l'image avec DISM
+dism /Capture-Image /ImageFile:"\\SRV-DEPLOY\Images\Win11-Cabinet.wim" /CaptureDir:C:\ /Name:"Windows 11 Cabinet" /Compress:fast
+```
+
+**Taille de l'image** : 12 GB
+
+## Phase 3 : Déploiement automatisé (Jour 6-7)
+
+### Configuration Microsoft Deployment Toolkit (MDT)
+
+**Pourquoi MDT** : Déploiement automatisé via PXE, sans clé USB à brancher sur chaque PC.
+
+**Configuration** :
+1. Import de l'image WIM dans MDT
+2. Création d'une Task Sequence :
+   - Partitionnement disque
+   - Application de l'image
+   - Installation drivers
+   - Join domaine (cabinet.local)
+   - Installation applications complémentaires
+3. Génération de l'image boot WinPE (LiteTouchPE_x64.iso)
+4. Configuration du serveur WDS (Windows Deployment Services)
+
+### Déploiement par vagues
+
+**Stratégie** : Déploiement par lot de 10 PC en parallèle
+
+**Procédure** :
+1. Brancher 10 PC au réseau
+2. Allumer les PC → Boot PXE (F12)
+3. Sélectionner "Windows 11 Cabinet" dans le menu MDT
+4. Déploiement automatique (30 minutes par PC)
+5. Une fois terminé, passer aux 10 suivants
+
+**Optimisation avec l'IA - Script de monitoring** :
+
+**Prompt** :
+```
+Génère un script PowerShell pour monitorer le déploiement MDT
+en temps réel.
+
+Le script doit :
+- Se connecter au serveur MDT
+- Lister les déploiements en cours
+- Afficher la progression (%)
+- Alerter en cas d'échec
+- Générer un rapport final
+```
+
+**Script généré** :
+
+```powershell
+# Monitor-MDTDeployment.ps1
+
+$MDTServer = "\\SRV-DEPLOY\DeploymentShare$"
+$MonitoringData = "$MDTServer\Control\Monitor"
+
+while ($true) {
+    Clear-Host
+    Write-Host "=== Monitoring déploiement MDT ===" -ForegroundColor Cyan
+    Write-Host "Mise à jour : $(Get-Date -Format 'HH:mm:ss')`n"
+
+    # Récupérer les déploiements en cours
+    $deployments = Get-MDTMonitorData -Path $MonitoringData
+
+    foreach ($deployment in $deployments) {
+        $status = switch ($deployment.DeploymentStatus) {
+            1 { "En cours"; $color = "Yellow" }
+            3 { "Terminé"; $color = "Green" }
+            default { "Échec"; $color = "Red" }
+        }
+
+        Write-Host "[$($deployment.Name)] " -NoNewline
+        Write-Host "$status - $($deployment.PercentComplete)%" -ForegroundColor $color
+    }
+
+    Start-Sleep -Seconds 10
+}
+```
+
+**Résultat** : 50 PC déployés en 2 jours (20h effectives)
+
+## Phase 4 : Installation applications (Jour 8)
+
+### Déploiement Office 365
+
+**Via GPO** (installation silencieuse) :
+
+```xml
+<!-- configuration.xml pour Office 365 -->
+<Configuration>
+  <Add OfficeClientEdition="64">
+    <Product ID="O365ProPlusRetail">
+      <Language ID="fr-fr" />
+    </Product>
+  </Add>
+  <Updates Enabled="TRUE" />
+  <Display Level="None" AcceptEULA="TRUE" />
+</Configuration>
+```
+
+**Script de déploiement** :
+
+```powershell
+# Téléchargement et installation Office 365
+\\SRV-DEPLOY\Office365\setup.exe /configure \\SRV-DEPLOY\Office365\configuration.xml
+```
+
+**Déployé via GPO** : Installation automatique au démarrage du PC.
+
+### Installation Sage 100
+
+**Problème** : Installation interactive (nécessite clics manuels).
+
+**Solution avec IA** :
+
+**Prompt** :
+```
+Comment automatiser l'installation de Sage 100 qui nécessite
+des clics manuels ?
+
+Options :
+- Installation silencieuse (existe-t-elle ?)
+- Script AutoIT/AutoHotkey
+- Autre solution ?
+```
+
+**Réponse de l'IA** :
+```
+1. Vérifier si Sage 100 supporte /silent ou /quiet en paramètre :
+   setup.exe /silent
+
+2. Si non, utiliser un fichier de réponse (setup.iss) :
+   - Exécuter une installation avec : setup.exe /r
+   - Cela génère un fichier setup.iss
+   - Rejouer avec : setup.exe /s /f1"setup.iss"
+
+3. Déployer via GPO ou script de démarrage
+```
+
+**Application** : Fichier setup.iss créé, déploiement automatisé. ✓
+
+## Phase 5 : Migration des données (Jour 9)
+
+### Collecte des données depuis anciens PC
+
+**Méthode** : Script PowerShell pour copier automatiquement les dossiers utilisateurs.
+
+**Script de migration** :
+
+```powershell
+# Migrate-UserData.ps1
+# Copie les données utilisateurs depuis anciens PC vers serveur
+
+$OldPCList = Import-Csv "C:\Migration\pc_list.csv"  # Colonnes: OldPC, NewPC, Username
+$DestinationServer = "\\SRV-FILES\Users"
+
+foreach ($pc in $OldPCList) {
+    Write-Host "Migration de $($pc.Username) depuis $($pc.OldPC)..."
+
+    $sourcePath = "\\$($pc.OldPC)\C$\Users\$($pc.Username)"
+    $destPath = "$DestinationServer\$($pc.Username)"
+
+    # Copie avec robocopy (reprise en cas d'interruption)
+    robocopy $sourcePath $destPath /E /Z /R:3 /W:5 /LOG:"C:\Logs\migration_$($pc.Username).log"
+
+    if ($LASTEXITCODE -le 7) {
+        Write-Host "✓ Migration réussie pour $($pc.Username)" -ForegroundColor Green
+    } else {
+        Write-Host "✗ Échec migration $($pc.Username)" -ForegroundColor Red
+    }
+}
+```
+
+**Statistiques** :
+- 50 utilisateurs migrés
+- Volume total : 1,2 TB
+- Durée : 6 heures
+- Taux de réussite : 100%
+
+## Phase 6 : Tests et validation (Jour 10)
+
+### Tests pilotes (10 utilisateurs)
+
+**Checklist de test** :
+
+- [ ] Connexion au domaine avec identifiants
+- [ ] Accès aux partages réseau (lecture/écriture)
+- [ ] Ouverture Office (Word, Excel, Outlook)
+- [ ] Accès Sage 100 (licence valide)
+- [ ] Impression (test sur les 5 imprimantes)
+- [ ] Accès Internet (navigation, téléchargement)
+- [ ] Accès applications en ligne (HubSpot CRM)
+
+**Problèmes détectés** :
+
+1. **Imprimantes non ajoutées automatiquement**
+
+**Solution** : Script GPO pour ajouter les imprimantes réseau :
+
+```powershell
+# Script GPO startup : Add-Printers.ps1
+Add-Printer -ConnectionName "\\SRV-PRINT\Xerox-RDC"
+Add-Printer -ConnectionName "\\SRV-PRINT\Xerox-Etage1"
+# ...
+```
+
+2. **Sage 100 demande activation à chaque utilisateur**
+
+**Cause** : Licence flottante mal configurée.
+
+**Solution** : Configuration du serveur de licences Sage.
+
+### Formation utilisateurs
+
+**2 sessions de 1h30** (25 personnes par session)
+
+**Programme** :
+1. Connexion à Windows 11 (nouveau domaine)
+2. Différences Windows 10 → Windows 11 (menu Démarrer, widgets)
+3. Accès aux partages réseau (lecteurs mappés automatiquement)
+4. Utilisation d'Outlook (nouvelle interface)
+5. Accès à Sage 100
+6. Procédure d'impression
+7. Support IT (extension 150, email it@cabinet.com)
+
+**Support documentaire** : Guide PDF de 10 pages + vidéos tutoriels.
+
+## Résultats du projet
+
+### Indicateurs techniques
+
+- **50 PC déployés** en 10 jours ✓
+- **Temps de déploiement par PC** : 30 minutes (automatisé)
+- **Taux de réussite déploiement** : 100%
+- **Migration données** : 1,2 TB en 6 heures
+- **Downtime utilisateurs** : 0 (migration pendant fermeture estivale)
+
+### Indicateurs business
+
+- **Budget** : 78 000€ utilisés sur 80 000€ (sous budget de 2,5%)
+- **Délai** : Projet livré à J+10 (dans les temps)
+- **Satisfaction utilisateurs** : 92% (enquête post-déploiement)
+- **Incidents post-déploiement** : 5 tickets (mineurs, résolus en < 2h)
+
+### Répartition du budget
+
+| Poste | Montant |
+|-------|---------|
+| 50 PC Dell OptiPlex 7010 | 45 000€ |
+| 2 serveurs Dell PowerEdge | 15 000€ |
+| Switch + firewall | 5 000€ |
+| Licences (Office 365, Adobe) | 8 000€ |
+| Imprimantes | 3 000€ |
+| Divers (câbles, etc.) | 2 000€ |
+| **Total** | **78 000€** |
+
+## Apport de l'IA dans le projet
+
+### Planification (gain 50%)
+
+- Génération du planning détaillé → économie de 4h de préparation
+- Identification des dépendances critiques
+
+### Scripts d'automatisation (gain 70%)
+
+- Script création utilisateurs AD : 30 min au lieu de 3h (création manuelle)
+- Script migration données : généré en 15 min, testé, déployé
+- Script monitoring MDT : suivi en temps réel sans outil commercial
+
+### Troubleshooting (gain 60%)
+
+- Problème licence Sage 100 résolu en 20 min (vs 2h de recherche)
+- Configuration imprimantes : solution trouvée immédiatement
+
+**Temps total économisé : ~15 heures** sur le projet
+
+## Outils utilisés
+
+### Microsoft
+
+- Active Directory Domain Services
+- Microsoft Deployment Toolkit (MDT)
+- Windows Deployment Services (WDS)
+- Group Policy Management
+- PowerShell
+
+### Tiers
+
+- Dell Command Update (pilotes)
+- Robocopy (migration données)
+- TeamViewer (support à distance)
+
+### IA
+
+- ChatGPT (génération scripts, troubleshooting)
+- Claude (planification, recommandations)
+
+## Compétences démontrées
+
+### Techniques
+
+- Déploiement OS automatisé (MDT, WDS)
+- Administration Active Directory
+- Scripting PowerShell avancé
+- Configuration réseau (VLANs, DHCP, DNS)
+- Migration de données à grande échelle
+
+### Gestion de projet
+
+- Planification détaillée avec deadlines
+- Gestion des risques (tests pilotes avant déploiement complet)
+- Respect du budget et des délais
+- Communication avec les parties prenantes
+
+### Soft skills
+
+- Pédagogie (formation utilisateurs)
+- Organisation (50 PC à gérer simultanément)
+- Réactivité (résolution des problèmes en temps réel)
+- Travail en équipe (coordination avec stagiaire)
+
+## Leçons apprises
+
+### Ce qui a bien fonctionné
+
+1. **Automatisation maximale** : MDT + scripts PowerShell ont permis de déployer 50 PC rapidement
+2. **Tests pilotes** : Les 10 utilisateurs pilotes ont permis de détecter les problèmes avant le déploiement global
+3. **Formation utilisateurs** : Réduction des tickets de 80% grâce aux 2 sessions de formation
+4. **IA comme accélérateur** : Génération de scripts et troubleshooting rapide
+
+### Ce qui aurait pu être amélioré
+
+1. **Préparation licences Sage** : Problème de licence détecté tardivement (aurait dû être testé J-1)
+2. **Communication utilisateurs** : Certains utilisateurs n'étaient pas au courant du changement de domaine
+3. **Backup plan** : Pas de plan B si MDT tombait en panne (heureusement pas arrivé)
+
+### Recommandations pour un prochain déploiement
+
+1. Tester TOUTES les applications 48h avant le déploiement global
+2. Communiquer 1 semaine avant ET 2 jours avant
+3. Prévoir un PC de secours (ancien PC) pour chaque utilisateur critique
+4. Documenter chaque étape en temps réel (pas après)
+
+## Ce que cela démontre à un recruteur
+
+**Gestion de projet complète** : Capacité à mener un projet de A à Z (planification, exécution, validation)
+
+**Compétences techniques larges** : Windows Server, AD, scripting, déploiement automatisé, réseau
+
+**Approche moderne** : Utilisation d'IA pour accélérer (scripts, troubleshooting, documentation)
+
+**Orientation résultat** : Projet livré dans les temps, sous budget, avec haute satisfaction
+
+**Scalabilité** : Méthode applicable à 50, 500 ou 5000 postes (automatisation)
+
+**ROI tangible** : 15h économisées grâce à l'automatisation et l'IA
+
+---
+
+**Message au recruteur** : Ce projet démontre une capacité complète à déployer une infrastructure IT de A à Z pour 50 utilisateurs, en respectant budget et délais. L'automatisation maximale (MDT, PowerShell, IA) a permis de déployer efficacement tout en maintenant une qualité élevée. Cette approche est scalable et applicable à des déploiements de plus grande envergure.

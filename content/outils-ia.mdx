@@ -1,0 +1,422 @@
+# Outils IA utilisés
+
+Cette page présente les outils d'intelligence artificielle recommandés pour l'administration système et DevOps, avec un focus sur les solutions éprouvées en environnement professionnel.
+
+## Outils IA généralistes
+
+### ChatGPT (OpenAI)
+
+**Versions** :
+- GPT-4 Turbo (recommandé) : Meilleure qualité de réponse, contexte 128k tokens
+- GPT-3.5 Turbo : Rapide, gratuit, bon pour tâches simples
+
+**Forces** :
+- Génération de scripts (PowerShell, Bash, Python)
+- Analyse de logs et diagnostics d'erreurs
+- Documentation technique
+- Explications de concepts complexes
+
+**Limitations** :
+- Connaissance limitée aux données d'entraînement (cut-off 2023)
+- Peut inventer des informations (hallucinations)
+- Ne peut pas exécuter de commandes
+
+**Coût** :
+- Gratuit (GPT-3.5)
+- Plus : 20€/mois (GPT-4, GPT-4 Turbo)
+- Team : 25€/utilisateur/mois
+- Enterprise : Sur demande
+
+**Cas d'usage** :
+- Génération de scripts d'automatisation
+- Analyse de messages d'erreurs Windows/Linux
+- Création de documentation interne
+- Refactoring de code legacy
+
+### Claude (Anthropic)
+
+**Versions** :
+- Claude 3.5 Sonnet : Équilibre performance/prix
+- Claude 3 Opus : Version la plus puissante
+- Claude 3 Haiku : Rapide et économique
+
+**Forces** :
+- Fenêtre de contexte 200k tokens (documents longs)
+- Excellent pour analyse de code et revue
+- Meilleure compréhension des nuances techniques
+- Moins d'hallucinations que ChatGPT
+
+**Limitations** :
+- Moins populaire (moins de ressources communautaires)
+- API plus récente
+
+**Coût** :
+- Gratuit (limité)
+- Pro : 18€/mois
+- API : Pay-as-you-go
+
+**Cas d'usage** :
+- Analyse de configurations longues (Terraform, Cisco, Nginx)
+- Revue de code approfondie
+- Audit de sécurité
+- Génération de documentation complète
+
+### GitHub Copilot
+
+**Description** : Copilote de code IA intégré dans IDE (VS Code, JetBrains, Neovim)
+
+**Forces** :
+- Suggestions contextuelles en temps réel
+- Intégration native dans l'éditeur
+- Génération de code boilerplate
+- Completion de fonctions
+
+**Limitations** :
+- Nécessite connexion Internet
+- Peut suggérer du code sous licence restrictive
+- Moins bon pour tâches système/infrastructure que pour développement
+
+**Coût** :
+- 10€/mois (individuel)
+- 19€/utilisateur/mois (business)
+- Gratuit (étudiants, mainteneurs open-source)
+
+**Cas d'usage** :
+- Écriture de scripts (Python, Bash, PowerShell)
+- Génération de configuration (YAML, JSON, HCL)
+- Documentation inline (commentaires)
+
+## Outils IA spécialisés DevOps
+
+### Warp Terminal (IA intégrée)
+
+**Description** : Terminal moderne avec IA intégrée pour suggérer des commandes
+
+**Forces** :
+- Suggestions de commandes en langage naturel
+- Historique intelligent
+- Blocs de commandes réutilisables
+- Partage de workflows
+
+**Limitations** :
+- Disponible uniquement sur macOS/Linux (Windows via WSL)
+- Version gratuite limitée en features
+
+**Coût** :
+- Gratuit (individuel)
+- Team : 12€/utilisateur/mois
+
+**Cas d'usage** :
+- Apprentissage de commandes Linux/Git
+- Recherche rapide dans l'historique
+- Documentation de procédures
+
+### Tabnine
+
+**Description** : Alternative à GitHub Copilot, plus orienté entreprise
+
+**Forces** :
+- Peut tourner on-premise (sécurité)
+- Supporte 30+ langages
+- Moins de risque de leak de propriété intellectuelle
+
+**Limitations** :
+- Suggestions moins précises que Copilot
+- Nécessite configuration
+
+**Coût** :
+- Gratuit (basique)
+- Pro : 12€/mois
+- Enterprise : Sur demande
+
+**Cas d'usage** :
+- Entreprises avec exigences de confidentialité
+- Completion de code infrastructure (Terraform, Ansible)
+
+## Outils d'analyse et sécurité
+
+### Snyk AI
+
+**Description** : Détection de vulnérabilités avec suggestions IA de corrections
+
+**Forces** :
+- Scan automatique des dépendances
+- Fix automatique de vulnérabilités
+- Intégration CI/CD
+
+**Limitations** :
+- Focalisé sur code applicatif (moins infra)
+- Coût élevé pour grandes équipes
+
+**Coût** :
+- Gratuit (open-source)
+- Team : 50€/mois
+- Enterprise : Sur demande
+
+**Cas d'usage** :
+- Audit de sécurité automatique
+- Fix de vulnérabilités npm/pip/gem
+- Scanning containers Docker
+
+### Amazon CodeWhisperer
+
+**Description** : Outil de suggestions de code AWS
+
+**Forces** :
+- Gratuit pour usage individuel
+- Excellente intégration AWS
+- Sécurité et conformité intégrées
+
+**Limitations** :
+- Biaisé vers services AWS
+- Moins polyvalent que Copilot
+
+**Coût** :
+- Gratuit (individuel)
+- Professional : 19€/utilisateur/mois
+
+**Cas d'usage** :
+- Génération de code AWS (Lambda, CloudFormation)
+- Terraform AWS provider
+- Scripts boto3 (Python AWS SDK)
+
+## Outils de documentation
+
+### Mintlify Writer
+
+**Description** : Génération automatique de documentation depuis le code
+
+**Forces** :
+- Génère README, API docs
+- Intégration GitHub
+- Mise à jour automatique
+
+**Limitations** :
+- Focalisé sur code applicatif
+- Moins adapté pour infra
+
+**Coût** :
+- Gratuit (open-source)
+- Pro : Sur demande
+
+### Notion AI
+
+**Description** : IA intégrée dans Notion pour documentation
+
+**Forces** :
+- Génération de texte, résumés
+- Amélioration de rédaction
+- Organisation automatique
+
+**Limitations** :
+- Limité à l'écosystème Notion
+
+**Coût** :
+- 10€/utilisateur/mois (add-on Notion)
+
+**Cas d'usage** :
+- Documentation interne
+- Knowledge base entreprise
+- Procédures opérationnelles
+
+## Outils de recherche et veille
+
+### Perplexity AI
+
+**Description** : Moteur de recherche IA avec sources citées
+
+**Forces** :
+- Recherche web en temps réel
+- Sources citées (vérifiables)
+- Excellent pour troubleshooting
+
+**Limitations** :
+- Limité en requêtes (version gratuite)
+
+**Coût** :
+- Gratuit (5 recherches Pro/jour)
+- Pro : 20€/mois
+
+**Cas d'usage** :
+- Recherche d'erreurs techniques récentes
+- Veille technologique
+- Comparaison d'outils/solutions
+
+### Phind
+
+**Description** : Moteur de recherche IA pour développeurs
+
+**Forces** :
+- Spécialisé technique (dev, DevOps)
+- Résultats précis sur questions code
+- Gratuit
+
+**Limitations** :
+- Interface moins polie que Perplexity
+
+**Coût** :
+- Gratuit
+
+**Cas d'usage** :
+- Recherche de solutions techniques
+- Debugging
+- Comparaison de frameworks/librairies
+
+## Comparaison et recommandations
+
+### Pour débutants
+
+**Recommandation** : ChatGPT (GPT-3.5 gratuit)
+
+**Raison** :
+- Interface simple
+- Gratuit
+- Large communauté (tutoriels disponibles)
+
+**Usage typique** :
+- Apprendre commandes Linux
+- Générer scripts simples
+- Comprendre messages d'erreurs
+
+### Pour professionnels (PME/startups)
+
+**Recommandation** : ChatGPT Plus + GitHub Copilot
+
+**Coût** : 30€/mois
+
+**Raison** :
+- Meilleur rapport qualité/prix
+- Couverture complète (chat + IDE)
+- GPT-4 pour tâches complexes
+
+**Usage typique** :
+- Automatisation quotidienne
+- Génération de scripts de production
+- Revue de code
+
+### Pour grandes entreprises
+
+**Recommandation** : Claude Pro + GitHub Copilot Business + Tabnine Enterprise
+
+**Coût** : ~50-70€/utilisateur/mois
+
+**Raison** :
+- Fenêtre de contexte large (Claude)
+- Options on-premise (Tabnine)
+- Support entreprise
+
+**Usage typique** :
+- Audit de configurations complexes
+- Conformité et sécurité
+- Formation des équipes
+
+### Pour sécurité maximale
+
+**Recommandation** : Tabnine Enterprise (on-premise) + modèles open-source locaux
+
+**Raison** :
+- Aucune donnée envoyée à l'extérieur
+- Conformité RGPD garantie
+
+**Limitations** :
+- Qualité moindre que GPT-4
+- Coût d'infrastructure
+
+## Bonnes pratiques d'utilisation
+
+### Prompts efficaces
+
+**Mauvais prompt** :
+```
+Fais un script pour sauvegarder
+```
+
+**Bon prompt** :
+```
+Génère un script Bash pour sauvegarder /var/www vers /backup.
+
+Exigences :
+- Compression gzip
+- Rotation (garder 7 derniers backups)
+- Logging vers /var/log/backup.log
+- Email si échec
+- Exécutable via cron quotidien
+
+Format : Script complet avec gestion d'erreurs
+```
+
+### Vérification systématique
+
+1. Ne jamais copier-coller sans relire
+2. Tester en environnement de dev d'abord
+3. Vérifier les commandes destructives (rm, DROP, etc.)
+4. Valider la sécurité (mots de passe, permissions)
+
+### Itération
+
+1. Commencer par un prompt simple
+2. Affiner avec retours ("ajoute gestion d'erreurs")
+3. Demander explications si pas clair
+4. Adapter au contexte spécifique de l'entreprise
+
+### Documentation
+
+1. Conserver les prompts efficaces (bibliothèque)
+2. Noter les limitations rencontrées
+3. Partager les bonnes pratiques en équipe
+
+## Limites et risques
+
+### Hallucinations
+
+L'IA peut inventer des commandes ou options inexistantes.
+
+**Solution** : Toujours vérifier avec `man` ou documentation officielle.
+
+### Sécurité
+
+L'IA peut générer du code non sécurisé (SQL injection, XSS).
+
+**Solution** : Revue de code systématique, scanner de sécurité.
+
+### Confidentialité
+
+Certains outils envoient le code sur des serveurs externes.
+
+**Solution** : Lire les politiques de confidentialité, utiliser outils on-premise si sensible.
+
+### Obsolescence
+
+L'IA peut proposer des solutions obsolètes.
+
+**Solution** : Vérifier la date des outils/versions suggérés.
+
+## Ressources complémentaires
+
+### Communautés
+
+- r/ChatGPT : Reddit pour ChatGPT
+- Discord OpenAI : Support officiel
+- GitHub Discussions : Pour Copilot
+
+### Formations
+
+- Prompt Engineering Guide (gratuit) : [learnprompting.org](https://learnprompting.org)
+- OpenAI Cookbook : [github.com/openai/openai-cookbook](https://github.com/openai/openai-cookbook)
+
+### Veille
+
+- OpenAI Blog : Nouveautés GPT
+- Anthropic Blog : Nouveautés Claude
+- GitHub Blog : Features Copilot
+
+## Conclusion
+
+Les outils IA sont devenus indispensables pour l'administration système moderne. Le choix dépend du budget, des exigences de sécurité et du niveau d'expertise.
+
+**Starter Pack recommandé** :
+- ChatGPT gratuit pour commencer
+- Upgrade vers Plus si usage quotidien
+- Ajouter Copilot si beaucoup de scripting
+
+**L'IA ne remplace pas l'expertise technique**, mais accélère drastiquement les tâches répétitives et facilite l'apprentissage.
