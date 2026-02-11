@@ -36,10 +36,9 @@ export function generateStaticParams() {
   ]
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ section: string }> }) {
-  const { section } = await params
-  const title = sectionTitles[section]
-  const description = sectionDescriptions[section]
+export async function generateMetadata({ params }: { params: { section: string } }) {
+  const title = sectionTitles[params.section]
+  const description = sectionDescriptions[params.section]
 
   return {
     title: `${title} | SysAdmin + IA`,
@@ -47,16 +46,15 @@ export async function generateMetadata({ params }: { params: Promise<{ section: 
   }
 }
 
-export default async function SectionPage({ params }: { params: Promise<{ section: string }> }) {
-  const { section } = await params
-  const guides = getGuidesBySection(section)
+export default async function SectionPage({ params }: { params: { section: string } }) {
+  const guides = getGuidesBySection(params.section)
 
   if (guides.length === 0) {
     notFound()
   }
 
-  const sectionTitle = sectionTitles[section] || section
-  const sectionDescription = sectionDescriptions[section] || ''
+  const sectionTitle = sectionTitles[params.section] || params.section
+  const sectionDescription = sectionDescriptions[params.section] || ''
 
   return (
     <div className="container-custom py-12">
@@ -86,7 +84,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
             key={guide.slug}
             title={guide.title}
             excerpt={guide.excerpt || ''}
-            href={`/${section}/${guide.slug}`}
+            href={`/${params.section}/${guide.slug}`}
           />
         ))}
       </div>

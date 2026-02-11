@@ -44,10 +44,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ section: string; slug: string }>
+  params: { section: string; slug: string }
 }) {
-  const { section, slug } = await params
-  const guide = getGuide(section, slug)
+  const guide = getGuide(params.section, params.slug)
 
   if (!guide) {
     return {
@@ -64,17 +63,16 @@ export async function generateMetadata({
 export default async function GuidePage({
   params,
 }: {
-  params: Promise<{ section: string; slug: string }>
+  params: { section: string; slug: string }
 }) {
-  const { section, slug } = await params
-  const guide = getGuide(section, slug)
+  const guide = getGuide(params.section, params.slug)
 
   if (!guide) {
     notFound()
   }
 
   const mdxSource = await serialize(guide.content)
-  const sectionTitle = sectionTitles[section] || section
+  const sectionTitle = sectionTitles[params.section] || params.section
 
   return (
     <div className="container-custom py-12">
@@ -84,7 +82,7 @@ export default async function GuidePage({
           Accueil
         </Link>
         <span>/</span>
-        <Link href={`/${section}`} className="hover:text-neon-cyan transition-colors">
+        <Link href={`/${params.section}`} className="hover:text-neon-cyan transition-colors">
           {sectionTitle}
         </Link>
         <span>/</span>
@@ -93,7 +91,7 @@ export default async function GuidePage({
 
       {/* Back button */}
       <Link
-        href={`/${section}`}
+        href={`/${params.section}`}
         className="inline-flex items-center gap-2 text-neon-cyan hover:text-neon-magenta mb-8 transition-colors"
       >
         <ArrowLeft size={20} />
@@ -108,7 +106,7 @@ export default async function GuidePage({
       {/* Navigation */}
       <div className="mt-12 flex justify-between items-center">
         <Link
-          href={`/${section}`}
+          href={`/${params.section}`}
           className="btn-secondary"
         >
           ← Voir tous les guides {sectionTitle}
